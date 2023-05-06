@@ -3,6 +3,7 @@ import json
 import re
 from psycopg2 import OperationalError
 import psycopg2
+from psycopg2.extensions import connection
 from column_lineage import ColumnLineage
 from utils import _preprocess_sql, _produce_json
 from typing import List, Tuple
@@ -43,7 +44,7 @@ class Lineage:
         Start the column lineage call
         :return: the output_dict object will be the final output with each model name being key
         """
-        self.conn = psycopg2.connect(self.conn_string)
+        self.conn = self._check_db_connection()
         self.part_tables, self.schema_list = self._get_part_tables()
         for sql in self.sql_list:
             sql = self._remove_comments(sql, self.sql_list.index(sql))
@@ -99,7 +100,7 @@ class Lineage:
         _produce_json(self.output_dict, self.conn, self.search_schema)
         self.conn.close()
 
-    def _check_db_connection(self) -> None:
+    def _check_db_connection(self) -> connection:
         """
         Check if the conn_string is good
         :return: the sqlalchemy engine
@@ -109,6 +110,7 @@ class Lineage:
             print("database connected")
         except OperationalError:
             print("authentication error")
+        return psycopg2.connect(self.conn_string)
 
     def _get_part_tables(self) -> Tuple[dict, List]:
         """
