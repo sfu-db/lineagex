@@ -56,7 +56,7 @@ class TableLineage:
             for idx, val in enumerate(self.path):
                 self._preprocess_sql(org_sql=val, file=str(idx))
         else:
-            self.sql_files = self._get_files(path=path)
+            self.sql_files = self._get_files(path=self.path)
             for f in self.sql_files:
                 org_sql = open(f, mode="r", encoding="utf-8-sig").read()
                 org_sql = self._remove_comments(org_sql)
