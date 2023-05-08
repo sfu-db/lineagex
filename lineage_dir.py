@@ -6,6 +6,7 @@ from psycopg2.extensions import connection
 from stack import *
 from column_lineage import ColumnLineage
 from typing import Tuple, List, Any
+from utils import get_files, find_select, produce_json
 
 rem_regex = re.compile(r"[^a-zA-Z0-9_.]")
 
@@ -22,13 +23,13 @@ class TableLineage:
         self.part_tables = None
         self.df = None
         self.conn_string = (
-                url.split("//")[0]
-                + "//"
-                + username
-                + ":"
-                + password
-                + "@"
-                + url.split("//")[1]
+            url.split("//")[0]
+            + "//"
+            + username
+            + ":"
+            + password
+            + "@"
+            + url.split("//")[1]
         )
         self.schema = search_schema.split(",")[0]
         self.search_schema = search_schema
@@ -56,7 +57,7 @@ class TableLineage:
             for idx, val in enumerate(self.path):
                 self._preprocess_sql(org_sql=val, file=str(idx))
         else:
-            self.sql_files = self._get_files(path=self.path)
+            self.sql_files = get_files(path=self.path)
             for f in self.sql_files:
                 org_sql = open(f, mode="r", encoding="utf-8-sig").read()
                 org_sql = self._remove_comments(org_sql)
@@ -72,7 +73,9 @@ class TableLineage:
                 self._explain_sql(name=name, sql=sql)
             else:
                 continue
+        produce_json(self.output_dict, self.conn, self.search_schema)
         self._delete_view()
+        self.conn.close()
 
     def _delete_view(self) -> None:
         """
@@ -184,7 +187,7 @@ class TableLineage:
             "CREATE VIEW IF NOT EXISTS", ret_sql, flags=re.IGNORECASE
         ) or re.search("CREATE TABLE IF NOT EXISTS", ret_sql, flags=re.IGNORECASE):
             temp = ret_sql.split(" ")
-            ret_sql = ret_sql[ret_sql.index(temp[7]):]
+            ret_sql = ret_sql[ret_sql.index(temp[7]) :]
             if temp[5] in self.sql_files_dict.keys():
                 print("WARNING: duplicate script detected for {}".format(temp[5]))
             self.sql_files_dict[temp[5]] = ret_sql
@@ -192,7 +195,7 @@ class TableLineage:
             "CREATE TABLE", ret_sql, flags=re.IGNORECASE
         ):
             temp = ret_sql.split(" ")
-            ret_sql = ret_sql[ret_sql.index(temp[4]):]
+            ret_sql = ret_sql[ret_sql.index(temp[4]) :]
             if temp[2] in self.sql_files_dict.keys():
                 print("WARNING: duplicate script detected for {}".format(temp[2]))
             self.sql_files_dict[temp[2]] = ret_sql
@@ -204,11 +207,11 @@ class TableLineage:
                 self.insertion_dict[self.curr_name] = 1
             else:
                 self.insertion_dict[self.curr_name] = (
-                        self.insertion_dict[self.curr_name] + 1
+                    self.insertion_dict[self.curr_name] + 1
                 )
             insert_counter = self.insertion_dict[self.curr_name]
             self.curr_name = self.curr_name + "_INSERTION_{}".format(insert_counter)
-            self.sql_files_dict[self.curr_name] = self._find_select(ret_sql)
+            self.sql_files_dict[self.curr_name] = find_select(ret_sql)
         elif ret_sql.find("DELETE FROM") != -1:
             # find the current name in the insertion dict and how many times it has been deleted
             self.curr_name = re.sub(rem_regex, "", ret_sql.split(" ")[2])
@@ -216,11 +219,11 @@ class TableLineage:
                 self.deletion_dict[self.curr_name] = 1
             else:
                 self.deletion_dict[self.curr_name] = (
-                        self.deletion_dict[self.curr_name] + 1
+                    self.deletion_dict[self.curr_name] + 1
                 )
             delete_counter = self.deletion_dict[self.curr_name]
             self.curr_name = self.curr_name + "_DELETION_{}".format(delete_counter)
-            self.sql_files_dict[self.curr_name] = self._find_select(ret_sql)
+            self.sql_files_dict[self.curr_name] = find_select(ret_sql)
         else:
             if os.path.isfile(file):
                 name = os.path.basename(file)[:-4]
@@ -230,9 +233,7 @@ class TableLineage:
             else:
                 self.sql_files_dict[file] = ret_sql
 
-    def _explain_sql(
-        self, name: str = "", sql: str = ""
-    ) -> None:
+    def _explain_sql(self, name: str = "", sql: str = "") -> None:
         """
         Main function for extracting the table name from the sql. It tries to explain the current file's sql by
         analyzing the logical plan. But if its dependency is missing, the current one is put onto a stack and checking
@@ -246,9 +247,7 @@ class TableLineage:
             cur = self.conn.cursor()
             cur.execute("""SET search_path TO {};""".format(self.search_schema))
             cur.execute(
-                """EXPLAIN (VERBOSE TRUE, FORMAT JSON, COSTS FALSE) {}""".format(
-                    sql
-                )
+                """EXPLAIN (VERBOSE TRUE, FORMAT JSON, COSTS FALSE) {}""".format(sql)
             )
             log_plan = cur.fetchall()
             cur.close()
@@ -256,24 +255,40 @@ class TableLineage:
                 if isinstance(log_plan, list) or isinstance(log_plan, tuple):
                     log_plan = log_plan[0]
                 elif isinstance(log_plan, dict):
-                    log_plan = log_plan['Plan']
+                    log_plan = log_plan["Plan"]
                     break
             if name in self.creation_list:
                 self._create_view(name=name, sql=sql)
                 self.new_view_list.append(self.schema + "." + name)
                 self.creation_list.pop(self.creation_list.index(name))
+                table_name = self.schema + "." + name
+            else:
+                cur = self.conn.cursor()
+                cur.execute("""SET search_path TO {};""".format(self.search_schema))
+                cur.execute(
+                    """SELECT CONCAT (schemaname,'.', tablename) from pg_tables WHERE schemaname = ANY('{{{0}}}') and tablename = '{1}'""".format(
+                        search_schema, name
+                    )
+                )
+                table_name = cur.fetchone()
+                cur.close()
+                if table_name:
+                    table_name = table_name[0]
+                else:
+                    table_name = name
             col_lineage = ColumnLineage(
                 plan=log_plan,
                 sql=sql,
-                table_name=name,
+                table_name=table_name,
                 conn=self.conn,
                 part_tables=self.part_tables,
                 search_schema=self.search_schema,
             )
-            self.output_dict[name] = {}
-            self.output_dict[name]["tables"] = col_lineage.table_list
-            self.output_dict[name]["columns"] = col_lineage.column_dict
-            self.output_dict[name]["table_name"] = name
+            self.output_dict[table_name] = {
+                "tables": col_lineage.table_list,
+                "columns": col_lineage.column_dict,
+                "table_name": table_name,
+            }
             self.finished_list.append(name)
             while not self.s.isEmpty():
                 if self.s.peek() in self.sql_files_dict.keys():
@@ -331,41 +346,6 @@ class TableLineage:
         except OperationalError:
             print("authentication error")
         return psycopg2.connect(self.conn_string)
-
-    def _get_files(self, path: str = "") -> List:
-        """
-        Extracting all files from the directory or just put the file name in a list
-        :param path: path to the file/directory
-        :return: all the files in the directory and its subdirectory
-        """
-        if os.path.isfile(path):
-            sql_files = [path]
-        elif os.path.isdir(path):
-            sql_files = []
-            for path, subdirs, files in os.walk(path):
-                for name in files:
-                    if name.endswith(".sql") or name.endswith(".SQL"):
-                        sql_files.append(os.path.join(path, name))
-        else:
-            sql_files = []
-        return sql_files
-
-    def _find_select(self, q):
-        if q[-1] == ";":
-            q = q[:-1]
-        if q.upper().find("SELECT ") != -1:
-            idx = q.find("SELECT ")
-            if idx == 0:
-                q = q
-            else:
-                if q[idx - 1] == "(":
-                    # to resolve if the SELECT is wrapped around brackets
-                    q = q[idx:-1]
-                else:
-                    q = q[idx:]
-        else:
-            q = q
-        return q
 
     def _get_part_tables(self) -> Tuple[dict, List]:
         """

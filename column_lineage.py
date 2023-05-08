@@ -4,7 +4,7 @@ from sqlglot.expressions import CTE
 from psycopg2.extensions import connection
 
 from typing import List, Tuple
-from utils import _find_column
+from utils import find_column
 
 
 class ColumnLineage:
@@ -82,7 +82,7 @@ class ColumnLineage:
                     if table_alias_dict[t_name] in cte_col_dict.keys():
                         col_name = cte_col_dict[table_alias_dict[t_name]]
                     else:
-                        col_name = _find_column(
+                        col_name = find_column(
                             table_name=table_alias_dict[t_name],
                             engine=self.conn,
                             search_schema=self.search_schema,
@@ -94,7 +94,7 @@ class ColumnLineage:
                             final_column_list.extend(cte_col_dict[t_name])
                         else:
                             final_column_list.extend(
-                                _find_column(
+                                find_column(
                                     table_name=t_name,
                                     engine=self.conn,
                                     search_schema=self.search_schema,
@@ -543,7 +543,7 @@ class ColumnLineage:
                 self.possible_columns.append(i)
         # if an output has invalid char, its likely it's an expression, have to extract the columns
         if invalid_list:
-            all_table_cols = _find_column(
+            all_table_cols = find_column(
                 table_name=plan["Schema"] + "." + plan["Relation Name"],
                 engine=self.conn,
                 search_schema=self.search_schema,
@@ -685,7 +685,7 @@ class ColumnLineage:
                     if table_alias_dict[t_name] in cte_col_dict.keys():
                         col_name = cte_col_dict[table_alias_dict[t_name]]
                     else:
-                        col_name = _find_column(
+                        col_name = find_column(
                             table_name=table_alias_dict[t_name],
                             engine=self.conn,
                             search_schema=self.search_schema,
@@ -697,7 +697,7 @@ class ColumnLineage:
                             cte_col_dict[cte_name].extend(cte_col_dict[t_name])
                         else:
                             cte_col_dict[cte_name].extend(
-                                _find_column(
+                                find_column(
                                     table_name=t_name,
                                     engine=self.conn,
                                     search_schema=self.search_schema,

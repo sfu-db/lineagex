@@ -1,4 +1,5 @@
 import re
+import os
 import ast
 import json
 from psycopg2.extensions import connection
@@ -74,11 +75,12 @@ def _preprocess_sql(org_sql: str = "", schema_list: List = None) -> str:
     return ret_sql
 
 
-def _find_column(
+def find_column(
     table_name: str = "", engine: connection = None, search_schema: str = ""
 ) -> List:
     """
     Find the columns for the base table in the database
+    :param search_schema: the schemas for SET search_path
     :param engine: the connection engine
     :param table_name: the base table name
     :return: the list of columns in the base table
@@ -101,7 +103,44 @@ def _find_column(
     return [s[0] for s in result]
 
 
-def _produce_json(
+def get_files(path: str = "") -> List:
+    """
+    Extracting all files from the directory or just put the file name in a list
+    :param path: path to the file/directory
+    :return: all the files in the directory and its subdirectory
+    """
+    if os.path.isfile(path):
+        sql_files = [path]
+    elif os.path.isdir(path):
+        sql_files = []
+        for path, subdirs, files in os.walk(path):
+            for name in files:
+                if name.endswith(".sql") or name.endswith(".SQL"):
+                    sql_files.append(os.path.join(path, name))
+    else:
+        sql_files = []
+    return sql_files
+
+
+def find_select(q: str = "") -> str:
+    if q[-1] == ";":
+        q = q[:-1]
+    if q.upper().find("SELECT ") != -1:
+        idx = q.find("SELECT ")
+        if idx == 0:
+            q = q
+        else:
+            if q[idx - 1] == "(":
+                # to resolve if the SELECT is wrapped around brackets
+                q = q[idx:-1]
+            else:
+                q = q[idx:]
+    else:
+        q = q
+    return q
+
+
+def produce_json(
     output_dict: dict = None, engine: connection = None, search_schema: str = ""
 ) -> dict:
     table_to_model_dict = {}
@@ -138,9 +177,9 @@ def _produce_json(
             base_table_dict[key]["tables"] = [""]
             base_table_dict[key]["columns"] = {}
             if key.endswith("_ANALYZED"):
-                cols = _find_column(key[:-9], engine, search_schema)
+                cols = find_column(key[:-9], engine, search_schema)
             else:
-                cols = _find_column(key, engine, search_schema)
+                cols = find_column(key, engine, search_schema)
             for i in cols:
                 base_table_dict[key]["columns"][i] = [""]
             base_table_dict[key]["table_name"] = str(key)

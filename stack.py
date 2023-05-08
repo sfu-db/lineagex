@@ -3,6 +3,7 @@ class Node:
         self.value = value
         self.next = None
 
+
 class Stack:
 
     # Initializing a stack.
