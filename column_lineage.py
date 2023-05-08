@@ -79,8 +79,8 @@ class ColumnLineage:
                 # if the * has a prefix
                 if projection.find(exp.Identifier):
                     t_name = projection.find(exp.Identifier).text("this")
-                    if table_alias_dict[t_name] in cte_col_dict.keys():
-                        col_name = cte_col_dict[table_alias_dict[t_name]]
+                    if table_alias_dict[t_name] in self.cte_column.keys():
+                        col_name = self.cte_column[table_alias_dict[t_name]]
                     else:
                         col_name = find_column(
                             table_name=table_alias_dict[t_name],
@@ -90,8 +90,8 @@ class ColumnLineage:
                 # if * has no prefix
                 else:
                     for t_name in main_table_list:
-                        if t_name in cte_col_dict.keys():
-                            final_column_list.extend(cte_col_dict[t_name])
+                        if t_name in self.cte_column.keys():
+                            final_column_list.extend(self.cte_column[t_name])
                         else:
                             final_column_list.extend(
                                 find_column(

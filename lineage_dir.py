@@ -267,7 +267,7 @@ class TableLineage:
                 cur.execute("""SET search_path TO {};""".format(self.search_schema))
                 cur.execute(
                     """SELECT CONCAT (schemaname,'.', tablename) from pg_tables WHERE schemaname = ANY('{{{0}}}') and tablename = '{1}'""".format(
-                        search_schema, name
+                        self.search_schema, name
                     )
                 )
                 table_name = cur.fetchone()
@@ -275,7 +275,7 @@ class TableLineage:
                 if table_name:
                     table_name = table_name[0]
                 else:
-                    table_name = name
+                    table_name = self.schema + "." + name
             col_lineage = ColumnLineage(
                 plan=log_plan,
                 sql=sql,
@@ -304,8 +304,9 @@ class TableLineage:
                 no_find_idx = error_msg.find("does not exist")
                 relation_idx = error_msg.find("relation")
                 schema_table = error_msg[relation_idx:no_find_idx]
-                table_name = schema_table.split(".")[-1][:-2]
+                table_name = schema_table.split(" ")[-2].split(".")[-1].strip('\"')
                 self.s.push(name)
+                #print(table_name, self.sql_files_dict)
                 if table_name in self.sql_files_dict.keys():
                     if self.schema + "." + table_name in self.new_view_list:
                         print(
