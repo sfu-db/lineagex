@@ -126,12 +126,13 @@ def produce_json(
             base_table_dict[key] = {}
             base_table_dict[key]["tables"] = [""]
             base_table_dict[key]["columns"] = {}
-            if key.endswith("_ANALYZED"):
-                cols = find_column(key[:-9], engine, search_schema)
-            else:
-                cols = find_column(key, engine, search_schema)
-            for i in cols:
-                base_table_dict[key]["columns"][i] = [""]
+            if engine and search_schema:
+                if key.endswith("_ANALYZED"):
+                    cols = find_column(key[:-9], engine, search_schema)
+                else:
+                    cols = find_column(key, engine, search_schema)
+                for i in cols:
+                    base_table_dict[key]["columns"][i] = [""]
             base_table_dict[key]["table_name"] = str(key)
             val["is_model"] = False
     base_table_dict.update(output_dict)

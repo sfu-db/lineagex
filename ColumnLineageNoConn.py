@@ -9,7 +9,7 @@ class ColumnLineageNoConn:
         self.cte_table_dict = {}
         self.cte_dict = {}
         self.input_table_dict = input_table_dict
-        self.sql_ast = parse_one(sql)
+        self.sql_ast = parse_one(sql, read="postgres")
         self.all_used_col = []
         self.table_list = []
         self.all_subquery_table = []
@@ -22,8 +22,8 @@ class ColumnLineageNoConn:
         self.sub_shared_col_conds(self.sql_ast)
         self.run_lineage(self.sql_ast, False)
         #print(self.cte_dict)
-        print(self.column_dict)
-        print(self.table_list)
+        #print(self.column_dict)
+        #print(self.table_list)
 
     def run_lineage(self, sql_ast, subquery_flag):
         #print(sql_ast)
@@ -210,8 +210,8 @@ class ColumnLineageNoConn:
         elim_table = []
         if len(temp) < 2:
             for t in temp_table:
-                if t in input_table_dict.keys():
-                    if col_sql in input_table_dict[t]:
+                if t in self.input_table_dict.keys():
+                    if col_sql in self.input_table_dict[t]:
                         return [t + "." + col_sql]
                     else:
                         elim_table.append(t)
@@ -242,9 +242,9 @@ class ColumnLineageNoConn:
                 # Resolve alias
                 if t_name in self.table_alias_dict.keys():
                     t_name = self.table_alias_dict[t_name]
-                if t_name in input_table_dict.keys():
+                if t_name in self.input_table_dict.keys():
                     star_cols = []
-                    for s in input_table_dict[t_name]:
+                    for s in self.input_table_dict[t_name]:
                         star_cols.extend(self.find_alias_col(s, used_tables))
                 elif t_name in self.cte_dict.keys():
                     star_cols = []

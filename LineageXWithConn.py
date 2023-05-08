@@ -16,10 +16,10 @@ class LineageXWithConn:
     def __init__(
         self,
         path: str = "",
+        search_schema: str = "",
         url: str = "",
         username: str = "",
         password: str = "",
-        search_schema: str = "",
     ) -> None:
         self.part_tables = None
         self.df = None
