@@ -4,7 +4,7 @@ import psycopg2
 from psycopg2 import OperationalError
 from psycopg2.extensions import connection
 from stack import *
-from column_lineage import ColumnLineage
+from ColumnLineage import ColumnLineage
 from typing import Tuple, List, Any
 from utils import produce_json
 from SqlToDict import SqlToDict
