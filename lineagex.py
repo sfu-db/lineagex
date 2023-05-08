@@ -11,7 +11,7 @@ from utils import get_files, find_select, produce_json
 rem_regex = re.compile(r"[^a-zA-Z0-9_.]")
 
 
-class TableLineage:
+class lineagex:
     def __init__(
         self,
         path: str = "",
