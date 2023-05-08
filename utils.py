@@ -6,6 +6,25 @@ from psycopg2.extensions import connection
 from typing import Tuple, List
 
 
+def remove_comments(str1: str = "") -> str:
+    """
+    Remove comments/excessive spaces/"create table as"/"create view as" from the sql file
+    :param str1: the original sql
+    :return: the parsed sql
+    """
+    # remove the /* */ comments
+    q = re.sub(r"/\*[^*]*\*+(?:[^*/][^*]*\*+)*/", "", str1)
+    # remove whole line -- and # comments
+    lines = [line for line in q.splitlines() if not re.match("^\s*(--|#)", line)]
+    # remove trailing -- and # comments
+    q = " ".join([re.split("--|#", line)[0] for line in lines])
+    # replace all spaces around commas
+    q = re.sub(r"\s*,\s*", ",", q)
+    # replace all multiple spaces to one space
+    str1 = re.sub("\s\s+", " ", q)
+    str1 = str1.replace("\n", " ").strip()
+    return str1
+
 def find_column(
     table_name: str = "", engine: connection = None, search_schema: str = ""
 ) -> List:

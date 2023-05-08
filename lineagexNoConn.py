@@ -2,7 +2,7 @@ from sqlglot import parse_one, exp
 import os
 
 
-class lineagexNoConn:
+class LineageXNoConn:
     def __init__(self, sql: str = "", input_table_dict: dict = None):
         self.column_dict = {}
         self.table_alias_dict = {}

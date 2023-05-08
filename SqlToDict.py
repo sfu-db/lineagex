@@ -1,6 +1,6 @@
 import re
 import os
-from utils import get_files, find_select
+from utils import get_files, find_select, remove_comments
 from typing import List
 
 rem_regex = re.compile(r"[^a-zA-Z0-9_.]")
@@ -26,7 +26,7 @@ class SqlToDict:
             self.sql_files = get_files(path=self.path)
             for f in self.sql_files:
                 org_sql = open(f, mode="r", encoding="utf-8-sig").read()
-                org_sql = self._remove_comments(org_sql)
+                org_sql = remove_comments(org_sql)
                 org_sql_split = list(filter(None, org_sql.split(";")))
                 if len(org_sql_split) <= 1:
                     self._preprocess_sql(org_sql=org_sql_split[0], file=f)
@@ -34,32 +34,13 @@ class SqlToDict:
                     for idx, val in enumerate(org_sql_split):
                         self._preprocess_sql(org_sql=val, file=f + "_" + str(idx))
 
-    def _remove_comments(self, str1: str = "") -> str:
-        """
-        Remove comments/excessive spaces/"create table as"/"create view as" from the sql file
-        :param str1: the original sql
-        :return: the parsed sql
-        """
-        # remove the /* */ comments
-        q = re.sub(r"/\*[^*]*\*+(?:[^*/][^*]*\*+)*/", "", str1)
-        # remove whole line -- and # comments
-        lines = [line for line in q.splitlines() if not re.match("^\s*(--|#)", line)]
-        # remove trailing -- and # comments
-        q = " ".join([re.split("--|#", line)[0] for line in lines])
-        # replace all spaces around commas
-        q = re.sub(r"\s*,\s*", ",", q)
-        # replace all multiple spaces to one space
-        str1 = re.sub("\s\s+", " ", q)
-        str1 = str1.replace("\n", " ").strip()
-        return str1
-
     def _preprocess_sql(self, org_sql: str = "", file: str = "") -> None:
         """
         Process the sql, remove database name in the clause/datetime_add/datetime_sub adding quotes
         :param org_sql: the original sql, file: file name for the sql
         :return: None
         """
-        ret_sql = self._remove_comments(str1=org_sql)
+        ret_sql = remove_comments(str1=org_sql)
         ret_sql = ret_sql.replace("`", "")
         # remove any database names in the query
         if self.schema_list:
