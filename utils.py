@@ -25,6 +25,7 @@ def remove_comments(str1: str = "") -> str:
     str1 = str1.replace("\n", " ").strip()
     return str1
 
+
 def find_column(
     table_name: str = "", engine: connection = None, search_schema: str = ""
 ) -> List:
@@ -115,6 +116,9 @@ def produce_json(
                 else:
                     dep_dict[key_name]["downstream_tables"].append(key)
     base_table_dict = {}
+    base_table_noconn_dict = {}
+    if not engine and not search_schema:
+        base_table_noconn_dict = _guess_base_table(output_dict)
     for key, val in dep_dict.items():
         if "upstream_tables" not in list(val.keys()):
             val["upstream_tables"] = []
@@ -126,13 +130,16 @@ def produce_json(
             base_table_dict[key] = {}
             base_table_dict[key]["tables"] = [""]
             base_table_dict[key]["columns"] = {}
+            # if db conn is provided
             if engine and search_schema:
                 if key.endswith("_ANALYZED"):
                     cols = find_column(key[:-9], engine, search_schema)
                 else:
                     cols = find_column(key, engine, search_schema)
-                for i in cols:
-                    base_table_dict[key]["columns"][i] = [""]
+            else:
+                cols = base_table_noconn_dict.get(key, [])
+            for i in cols:
+                base_table_dict[key]["columns"][i] = [""]
             base_table_dict[key]["table_name"] = str(key)
             val["is_model"] = False
     base_table_dict.update(output_dict)
@@ -140,6 +147,20 @@ def produce_json(
         json.dump(base_table_dict, outfile)
     _produce_html(output_json=str(base_table_dict).replace("'", '"'))
     return base_table_dict
+
+
+def _guess_base_table(output_dict):
+    base_table_noconn_dict = {}
+    for key, val in output_dict.items():
+        for col_val in val["columns"].values():
+            for t in col_val:
+                idx = t.rfind(".")
+                if t[:idx] in base_table_noconn_dict.keys():
+                    if t[idx + 1:] not in base_table_noconn_dict[t[:idx]]:
+                        base_table_noconn_dict[t[:idx]].append(t[idx + 1:])
+                else:
+                    base_table_noconn_dict[t[:idx]] = [t[idx + 1:]]
+    return base_table_noconn_dict
 
 
 def _produce_html(output_json: str = ""):

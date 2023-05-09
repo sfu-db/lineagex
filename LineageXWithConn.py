@@ -16,7 +16,7 @@ class LineageXWithConn:
     def __init__(
         self,
         path: str = "",
-        search_schema: str = "",
+        search_schema: str = "public",
         url: str = "",
         username: str = "",
         password: str = "",
