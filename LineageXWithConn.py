@@ -5,11 +5,9 @@ from psycopg2 import OperationalError
 from psycopg2.extensions import connection
 from stack import *
 from ColumnLineage import ColumnLineage
-from typing import Tuple, List, Any, Optional, Union
+from typing import Tuple, List, Optional, Union
 from utils import produce_json
 from SqlToDict import SqlToDict
-
-rem_regex = re.compile(r"[^a-zA-Z0-9_.]")
 
 
 class LineageXWithConn:
@@ -74,7 +72,7 @@ class LineageXWithConn:
             print(i + " dropped")
         cur.close()
 
-    def _create_view(self, name: str = "", sql: str = "") -> None:
+    def _create_view(self, name: Optional[str] = "", sql: Optional[str] = "") -> None:
         """
         Create temporary tables with no data from the given sql
         :param name: name of the table
@@ -102,7 +100,7 @@ class LineageXWithConn:
         cur.close()
         print(self.schema + "." + name + " created")
 
-    def _explain_sql(self, name: str = "", sql: str = "") -> None:
+    def _explain_sql(self, name: Optional[str] = "", sql: Optional[str] = "") -> None:
         """
         Main function for extracting the table name from the sql. It tries to explain the current file's sql by
         analyzing the logical plan. But if its dependency is missing, the current one is put onto a stack and checking
