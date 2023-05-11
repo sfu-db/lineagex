@@ -51,11 +51,15 @@ class LineageXWithConn:
         self.part_tables, self.schema_list = self._get_part_tables()
         self.sql_files_dict = SqlToDict(self.path, self.schema_list).sql_files_dict
         for name, sql in self.sql_files_dict.items():
-            if name not in self.finished_list:
-                self._explain_sql(name=name, sql=sql)
-            else:
+            try:
+                if name not in self.finished_list:
+                    self._explain_sql(name=name, sql=sql)
+                else:
+                    continue
+            except Exception as e:
+                print("{} is not processed because it countered {}".format(name, e))
                 continue
-        produce_json(self.output_dict, self.conn, self.search_schema)
+        produce_json(output_dict=self.output_dict, engine=self.conn, search_schema=self.search_schema)
         self._delete_view()
         self.conn.close()
 

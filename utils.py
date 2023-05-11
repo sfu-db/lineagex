@@ -3,10 +3,10 @@ import os
 import ast
 import json
 from psycopg2.extensions import connection
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 
 
-def remove_comments(str1: str = "") -> str:
+def remove_comments(str1: Optional[str] = "") -> str:
     """
     Remove comments/excessive spaces/"create table as"/"create view as" from the sql file
     :param str1: the original sql
@@ -27,7 +27,7 @@ def remove_comments(str1: str = "") -> str:
 
 
 def find_column(
-    table_name: str = "", engine: connection = None, search_schema: str = ""
+    table_name: Optional[str] = "", engine: connection = None, search_schema: Optional[str] = ""
 ) -> List:
     """
     Find the columns for the base table in the database
@@ -54,7 +54,7 @@ def find_column(
     return [s[0] for s in result]
 
 
-def get_files(path: str = "") -> List:
+def get_files(path: Optional[str] = "") -> List:
     """
     Extracting all files from the directory or just put the file name in a list
     :param path: path to the file/directory
@@ -73,7 +73,12 @@ def get_files(path: str = "") -> List:
     return sql_files
 
 
-def find_select(q: str = "") -> str:
+def find_select(q: Optional[str] = "") -> str:
+    """
+    Find where the first SELECT starts
+    :param q: the input sql
+    :return: the sql with the first SELECT as the start
+    """
     if q[-1] == ";":
         q = q[:-1]
     if q.upper().find("SELECT ") != -1:
@@ -92,8 +97,15 @@ def find_select(q: str = "") -> str:
 
 
 def produce_json(
-    output_dict: dict = None, engine: connection = None, search_schema: str = ""
+    output_dict: Optional[dict] = None, engine: connection = None, search_schema: Optional[str] = ""
 ) -> dict:
+    """
+    Product the output.json and put into the html
+    :param output_dict: the parsed object with column level lineage
+    :param engine: db connection
+    :param search_schema: search schemas for db
+    :return: the output.json format with information about the base table
+    """
     # Get all the table names that are not in the output_dict(mostly base tables)
     all_tables = []
     for key, val in output_dict.items():
@@ -103,7 +115,7 @@ def produce_json(
     # If no conn is provided, try to guess the base table's columns
     base_table_noconn_dict = {}
     if not engine and not search_schema:
-        base_table_noconn_dict = _guess_base_table(output_dict)
+        base_table_noconn_dict = _guess_base_table(output_dict=output_dict)
     # Iterate through the base tables, and add into the output_dict
     for t in all_tables:
         base_table_dict[t] = {}
@@ -112,9 +124,9 @@ def produce_json(
         # if db conn is provided
         if engine and search_schema:
             if t.endswith("_ANALYZED"):
-                cols = find_column(t[:-9], engine, search_schema)
+                cols = find_column(table_name=t[:-9], engine=engine, search_schema=search_schema)
             else:
-                cols = find_column(t, engine, search_schema)
+                cols = find_column(table_name=t, engine=engine, search_schema=search_schema)
         else:
             cols = base_table_noconn_dict.get(t, [])
         for i in cols:
@@ -127,7 +139,12 @@ def produce_json(
     return base_table_dict
 
 
-def _guess_base_table(output_dict):
+def _guess_base_table(output_dict: Optional[dict] = None) -> dict:
+    """
+    Try to guess the base table columns when no db connection is given
+    :param output_dict: the output dict with the lineage information
+    :return: the guessed columns for the base tables
+    """
     base_table_noconn_dict = {}
     for key, val in output_dict.items():
         for col_val in val["columns"].values():
@@ -141,7 +158,11 @@ def _guess_base_table(output_dict):
     return base_table_noconn_dict
 
 
-def _produce_html(output_json: str = ""):
+def _produce_html(output_json: Optional[str] = "") -> None:
+    """
+    Produce the html file for viewing
+    :param output_json: the final output.json file
+    """
     # Creating the HTML file
     file_html = open("index.html", "w", encoding="utf-8")
     # Adding the input data to the HTML file

@@ -1,22 +1,23 @@
 import re
 from sqlglot import parse_one, exp
 from sqlglot.expressions import CTE
+from sqlglot import expressions
 from psycopg2.extensions import connection
 
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from utils import find_column
 
 
 class ColumnLineage:
     def __init__(
         self,
-        plan: dict = None,
-        sql: str = "",
-        table_name: str = "",
+        plan: Optional[dict] = None,
+        sql: Optional[str] = "",
+        table_name: Optional[str] = "",
         conn: connection = None,
-        part_tables: dict = None,
-        search_schema: str = "",
-    ):
+        part_tables: Optional[str] = None,
+        search_schema: Optional[str] = "",
+    ) -> None:
         self.split_regex = re.compile(r"[^a-zA-Z0-9._]")
         self.all_used_col = []
         self.possible_columns = []
@@ -32,14 +33,14 @@ class ColumnLineage:
         self.conn = conn
         self.search_schema = search_schema
         self.sql_ast = parse_one(sql=sql, read="postgres")
-        self.cte_column = self._find_cte_col(sql)
+        self.cte_column = self._find_cte_col()
         self.final_output = ""
         self.final_node_type = ""
         self.subquery_final_output = ""
         self.column_dict = {}
         self.table_list = []
-        self._traverse_plan(plan)
-        self._resolve_column_dict(self._find_final_column())
+        self._traverse_plan(plan=plan)
+        self._resolve_column_dict(cols=self._find_final_column())
         self.table_list = sorted(set(self.table_list))
         # print(self.final_output)
         # print(self.subplan_dict)
@@ -50,7 +51,11 @@ class ColumnLineage:
         # print("columns: ", self.column_dict)
         # print("table: ", self.table_list)
 
-    def _find_final_column(self):
+    def _find_final_column(self) -> List[str]:
+        """
+        Find all the column names in the final projection
+        :return: the list of column names in the final projection
+        """
         # Pop all CTE and Subquery trees
         for with_sql in self.sql_ast.find_all(exp.With):
             with_sql.pop()
@@ -107,7 +112,7 @@ class ColumnLineage:
                     final_column_list.append(col_name)
         return final_column_list
 
-    def _resolve_column_dict(self, cols: List = None) -> None:
+    def _resolve_column_dict(self, cols: Optional[List] = None) -> None:
         """
         Insert into column_dict using the column names as keys and its dependencies as child
         :param cols: the columns for the final output
@@ -135,9 +140,11 @@ class ColumnLineage:
             if val.find("SubPlan ") != -1:
                 subplan_name = re.findall(re.compile(r"SubPlan [0-9]*"), val)[0]
                 all_cols.extend(self.subplan_dict[subplan_name])
-            self.column_dict[cols[idx]] = sorted(self._remove_table_alias(all_cols))
+            self.column_dict[cols[idx]] = sorted(
+                self._remove_table_alias(cols=all_cols)
+            )
 
-    def _traverse_plan(self, plan: dict = None) -> None:
+    def _traverse_plan(self, plan: Optional[dict] = None) -> None:
         """
         Traversing the plan using recursion and go into Plans if it is present
         :param plan: the given execution plan
@@ -151,14 +158,14 @@ class ColumnLineage:
             "Index Only Scan",
         ]:
             self.table_alias[plan["Alias"]] = self._find_parent_table(
-                plan["Schema"] + "." + plan["Relation Name"]
+                table=plan["Schema"] + "." + plan["Relation Name"]
             )
             self.table_alias_reversed[
                 plan["Schema"] + "." + plan["Relation Name"]
             ] = plan["Alias"]
         if "Plans" in plan.keys():
             for subplan_data in plan["Plans"]:
-                self._traverse_plan(subplan_data)
+                self._traverse_plan(plan=subplan_data)
         temp = plan.get("Output")
         if temp is not None:
             self.final_output = temp
@@ -188,23 +195,23 @@ class ColumnLineage:
                 cte_name = plan["Subplan Name"].split(" ")[1]
                 self.table_list.append(
                     self._find_parent_table(
-                        (plan["Schema"] + "." + plan["Relation Name"])
+                        table=(plan["Schema"] + "." + plan["Relation Name"])
                     )
                 )
                 self.table_alias[cte_name] = cte_name
-                self._add_cte_dict(plan)
+                self._add_cte_dict(plan=plan)
             # Filter and scan in one plan
             elif "Filter" in plan.keys():
                 self._add_possible_columns(plan)
                 # self.possible_columns.extend(plan["Output"])
-                self._handle_filter_in_scan(plan)
+                self._handle_filter_in_scan(plan=plan)
                 # in the filter, there is chance there is also index cond
-                self._handle_index_cond(plan)
+                self._handle_index_cond(plan=plan)
             # Scan only
             else:
                 # to avoid index cond
                 self._add_possible_columns(plan=plan)
-                self._handle_index_cond(plan)
+                self._handle_index_cond(plan=plan)
         # if scan from cte
         elif plan["Node Type"] == "CTE Scan":
             # add to possible column first and add all columns from CTE to prevent filters on top of any
@@ -223,7 +230,7 @@ class ColumnLineage:
             )
             # handle filter and scan in the same plan
             if "Filter" in plan.keys():
-                self._handle_filter_in_scan(plan)
+                self._handle_filter_in_scan(plan=plan)
             # the current scan can also be the creation of another cte
             if "Subplan Name" in plan.keys():
                 if "CTE Name" in plan.keys():
@@ -234,7 +241,7 @@ class ColumnLineage:
                         ]
                     )
                 self.table_alias[plan["Alias"]] = plan["CTE Name"]
-                self._add_cte_dict(plan)
+                self._add_cte_dict(plan=plan)
             else:
                 # if just a scan, add to alias
                 self.table_alias[plan["Alias"]] = plan["CTE Name"]
@@ -248,11 +255,11 @@ class ColumnLineage:
                 self.subquery_final_output = plan["Plans"][0]["Output"]
             else:
                 self.subquery_final_output = plan["Output"]
-            self._resolve_subquery(plan)
+            self._resolve_subquery(plan=plan)
             if "Alias" in plan.keys():
                 self.cte_name = plan["Alias"]
             temp_dict = {}
-            self._extract_from_cond(plan)
+            self._extract_from_cond(plan=plan)
             if self.cte_name in self.cte_column.keys():
                 for idx, val in enumerate(self.cte_column[self.cte_name]):
                     cte_col = re.split(
@@ -270,7 +277,7 @@ class ColumnLineage:
                             self.subquery_final_output[idx],
                         )[0]
                         all_cols.extend(self.subplan_dict[subplan_name])
-                    temp_dict[val] = self._remove_table_alias(all_cols)
+                    temp_dict[val] = self._remove_table_alias(cols=all_cols)
                 self.cte_dict[self.cte_name] = temp_dict
             self.table_alias[plan["Alias"]] = plan["Alias"]
             self.all_used_col = org_all_used_cols
@@ -289,31 +296,37 @@ class ColumnLineage:
                     if s[0] == "CTE":
                         self.cte_name = s[1]
                         temp_dict = {}
-                        self._extract_from_cond(plan)
-                        self._resolve_union(plan)
+                        self._extract_from_cond(plan=plan)
+                        self._resolve_union(plan=plan)
                         self.agg_flag = False
                         for val in self.cte_column[self.cte_name]:
-                            temp_dict[val] = self._remove_table_alias(self.all_used_col)
+                            temp_dict[val] = self._remove_table_alias(
+                                cols=self.all_used_col
+                            )
                         self.cte_dict[self.cte_name] = temp_dict
                         self.all_used_col = []
                         self.possible_columns = []
                 else:
                     # if only creation of a cte, but no scan, just add it to cte_dict
-                    self._add_cte_dict(plan)
+                    self._add_cte_dict(plan=plan)
             # UNION/EXCEPT/INTERSECT at the last step with no creation of CTE
             elif (
                 plan["Node Type"] in ["Append", "MergeAppend"]
                 and "Output" not in plan.keys()
                 and len(plan["Plans"]) != 0
             ):
-                self._extract_from_cond(plan)
-                self._resolve_union(plan)
+                self._extract_from_cond(plan=plan)
+                self._resolve_union(plan=plan)
                 self.agg_flag = False
             # every other node aside from cte creations/scans
             else:
-                self._extract_from_cond(plan)
+                self._extract_from_cond(plan=plan)
 
-    def _handle_index_cond(self, plan: dict = None) -> None:
+    def _handle_index_cond(self, plan: Optional[dict] = None) -> None:
+        """
+        When there's an index_cond in the plan, handle it and extract the necessary columns
+        :param plan: the plan with the index_cond
+        """
         temp = plan.get("Index Cond")
         if temp is not None:
             idx_name = plan.get("Index Name")
@@ -340,7 +353,11 @@ class ColumnLineage:
             row_col = re.split(self.split_regex, temp.strip())
             self.all_used_col.extend(list(set(row_col) & set(self.possible_columns)))
 
-    def _handle_filter_in_scan(self, plan: dict = None) -> None:
+    def _handle_filter_in_scan(self, plan: Optional[dict] = None) -> None:
+        """
+        When there is filter in the scan node, handle it and find necessary columns
+        :param plan: the plan with the filter in the scan node
+        """
         if "Alias" in plan.keys():
             alias = plan["Alias"]
         else:
@@ -354,10 +371,14 @@ class ColumnLineage:
             subplan_name = re.findall(re.compile(r"SubPlan [0-9]*"), temp)[0]
             self.all_used_col.extend(self.subplan_dict[subplan_name])
 
-    def _resolve_subquery(self, plan: dict = None) -> None:
+    def _resolve_subquery(self, plan: Optional[dict] = None) -> None:
+        """
+        When there is a node with subquery, go in recursively and find the most inner node
+        :param plan: the node with subquery
+        """
         if "Plans" in plan.keys():
             for subplan_data in plan["Plans"]:
-                self._resolve_subquery(subplan_data)
+                self._resolve_subquery(plan=subplan_data)
         if "Output" in plan.keys() and plan["Node Type"] in [
             "Seq Scan",
             "Parallel Seq Scan",
@@ -367,22 +388,21 @@ class ColumnLineage:
             "CTE Scan",
         ]:
             self.possible_columns.extend(plan["Output"])
-            self._extract_from_cond(plan)
+            self._extract_from_cond(plan=plan)
         else:
-            self._extract_from_cond(plan)
+            self._extract_from_cond(plan=plan)
 
-    def _resolve_union(self, plan: dict = None) -> None:
+    def _resolve_union(self, plan: Optional[dict] = None) -> None:
         """
         To resolve the UNION, all the columns involved are used since those columns need to be the same
         :param plan: the execution plan for UNION/EXCEPT/INTERSECT
-        :return:
         """
         if "Plans" in plan.keys():
             # Check if it is an aggregation, since it would scan all the columns
             if plan["Plans"][0]["Node Type"] == "Aggregate":
                 self.agg_flag = True
             for subplan_data in plan["Plans"]:
-                self._resolve_union(subplan_data)
+                self._resolve_union(plan=subplan_data)
         if (
             "Output" in plan.keys()
             and plan["Node Type"]
@@ -400,7 +420,7 @@ class ColumnLineage:
                 self.part_tables.keys()
             ):
                 self.possible_columns.extend(plan["Output"])
-                self._extract_from_cond(plan)
+                self._extract_from_cond(plan=plan)
             else:
                 # if it is using Append node for UNION/EXCEPT/INTERSECT
                 for col in plan["Output"]:
@@ -420,7 +440,7 @@ class ColumnLineage:
                     list(set(row_col) & set(self.possible_columns))
                 )
 
-    def _add_cte_dict(self, plan: dict = None) -> None:
+    def _add_cte_dict(self, plan: Optional[dict] = None) -> None:
         """
         Add to the cte dict given the CTE plan and analyze its column lineage
         :param plan: the CTE plan
@@ -430,7 +450,7 @@ class ColumnLineage:
         if s[0] == "CTE":
             self.cte_name = s[1]
             temp_dict = {}
-            self._extract_from_cond(plan)
+            self._extract_from_cond(plan=plan)
             for idx, val in enumerate(self.cte_column[self.cte_name]):
                 cte_col = re.split(self.split_regex, plan["Output"][idx].strip())
                 all_cols = list(
@@ -444,7 +464,7 @@ class ColumnLineage:
                         re.compile(r"SubPlan [0-9]*"), plan["Output"][idx]
                     )[0]
                     all_cols.extend(self.subplan_dict[subplan_name])
-                temp_dict[val] = self._remove_table_alias(all_cols)
+                temp_dict[val] = self._remove_table_alias(cols=all_cols)
             self.cte_dict[self.cte_name] = temp_dict
             self.all_used_col = []
             self.possible_columns = []
@@ -454,10 +474,10 @@ class ColumnLineage:
             for _, val in enumerate(plan["Output"]):
                 table_col = re.split(self.split_regex, val.strip())
                 all_cols = list(set(set(table_col) & set(self.possible_columns)))
-                subplan_list.extend(self._remove_table_alias(all_cols))
+                subplan_list.extend(self._remove_table_alias(cols=all_cols))
             self.subplan_dict[plan["Subplan Name"]] = subplan_list
 
-    def _extract_from_cond(self, plan: dict = None) -> None:
+    def _extract_from_cond(self, plan: Optional[dict] = None) -> None:
         """
         Extract column from multiple operators, some add to possible_cols and some add to all_used_cols
         :param plan: the execution plan for the operator
@@ -467,7 +487,7 @@ class ColumnLineage:
         if plan["Node Type"] == "WindowAgg":
             self.possible_columns.extend(plan["Output"])
         # Handle index cond
-        self._handle_index_cond(plan)
+        self._handle_index_cond(plan=plan)
         temp = plan.get("Hash Cond")
         if temp is not None:
             row_col = re.split(self.split_regex, temp.strip())
@@ -507,11 +527,11 @@ class ColumnLineage:
                         )
                     )
                     self.function_call_cols[plan["Output"][0]] = sorted(
-                        self._remove_table_alias(all_cols)
+                        self._remove_table_alias(cols=all_cols)
                     )
                     self.possible_columns.append(plan["Output"][0])
 
-    def _add_possible_columns(self, plan: dict = None) -> None:
+    def _add_possible_columns(self, plan: Optional[dict] = None) -> None:
         """
         Extract the columns/tables from the plan and add to possible columns and used tables, mainly used for base table
         :param plan: plan to extract columns and tables
@@ -559,16 +579,16 @@ class ColumnLineage:
                             plan["Schema"] + "." + plan["Relation Name"] + "." + j
                         )
         self.table_list.append(
-            self._find_parent_table(plan["Schema"] + "." + plan["Relation Name"])
+            self._find_parent_table(table=plan["Schema"] + "." + plan["Relation Name"])
         )
         self.table_alias[plan["Alias"]] = self._find_parent_table(
-            plan["Schema"] + "." + plan["Relation Name"]
+            table=plan["Schema"] + "." + plan["Relation Name"]
         )
         self.table_alias_reversed[plan["Schema"] + "." + plan["Relation Name"]] = plan[
             "Alias"
         ]
 
-    def _find_parent_table(self, table: str = "") -> str:
+    def _find_parent_table(self, table: Optional[str] = "") -> str:
         """
         Find the parent table from a given table name
         :param table: table name
@@ -579,7 +599,7 @@ class ColumnLineage:
                 table = self.part_tables[table]
         return table
 
-    def _remove_table_alias(self, cols: List = None) -> List:
+    def _remove_table_alias(self, cols: Optional[List] = None) -> List:
         """
         Remove the alias in the name or add intended schema.table to column names
         :param cols: the list of columns that has aliases that need to be resolved
@@ -635,7 +655,7 @@ class ColumnLineage:
                 table_alias_dict[table_def_split[0]] = table_def_split[0]
             else:
                 table_alias_dict[table_def_split[1]] = table_def_split[0]
-        # Find tables thats only in the CTE but not in the Subquery
+        # Find tables that's only in the CTE but not in the Subquery
         temp_cte = cte.copy()
         for sub_ast in temp_cte.find_all(exp.Subquery):
             sub_ast.pop()
@@ -645,7 +665,7 @@ class ColumnLineage:
             cte_table_list.append(table_def_split[0])
         return table_alias_dict, cte_table_list
 
-    def _find_cte_col(self, sql: str = "") -> dict:
+    def _find_cte_col(self) -> dict:
         """
         Find the column names for each cte since it does not show in the execution plan
         :param sql: the sql that needs to be analyzed
@@ -653,12 +673,20 @@ class ColumnLineage:
         """
         cte_col_dict = {}
         for cte in self.sql_ast.find_all(exp.CTE):
-            cte_col_dict = self._find_cte_col_func(cte, cte_col_dict)
+            cte_col_dict = self._find_cte_col_func(cte=cte, cte_col_dict=cte_col_dict)
         for cte in self.sql_ast.find_all(exp.Subquery):
-            cte_col_dict = self._find_cte_col_func(cte, cte_col_dict)
+            cte_col_dict = self._find_cte_col_func(cte=cte, cte_col_dict=cte_col_dict)
         return cte_col_dict
 
-    def _find_cte_col_func(self, cte: CTE = None, cte_col_dict: dict = None) -> dict:
+    def _find_cte_col_func(
+        self, cte: expressions = None, cte_col_dict: Optional[dict] = None
+    ) -> dict:
+        """
+        The function to find all the column names for the cte
+        :param cte: the cte ast tree
+        :param cte_col_dict: the dict that stores the column names for the previous cte
+        :return: the dict that contains column names with the current cte
+        """
         # Find each CTE
         cte_name = cte.find(exp.TableAlias).alias_or_name
         cte_col_dict[cte_name] = []
@@ -674,11 +702,13 @@ class ColumnLineage:
                 col_name = "max"
             elif isinstance(projection, exp.Min):
                 col_name = "min"
+            elif isinstance(projection, exp.Sum):
+                col_name = "sum"
             # Resolve * and check if it is from a previous CTE or check database for the table
             elif (
                 isinstance(projection, exp.Column) and projection.find(exp.Star)
             ) or col_name == "*":
-                table_alias_dict, cte_table_list = self._find_table(cte)
+                table_alias_dict, cte_table_list = self._find_table(cte=cte)
                 # if the * has a prefix
                 if projection.find(exp.Identifier):
                     t_name = projection.find(exp.Identifier).text("this")

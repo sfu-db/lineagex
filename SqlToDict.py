@@ -1,13 +1,13 @@
 import re
 import os
 from utils import get_files, find_select, remove_comments
-from typing import List
+from typing import List, Optional
 
 rem_regex = re.compile(r"[^a-zA-Z0-9_.]")
 
 
 class SqlToDict:
-    def __init__(self, path: str = "", schema_list: List = None):
+    def __init__(self, path: Optional[str] = "", schema_list: Optional[List] = None) -> None:
         self.path = path
         self.schema_list = schema_list
         self.sql_files = []
@@ -18,7 +18,11 @@ class SqlToDict:
         self._sql_to_dict()
         pass
 
-    def _sql_to_dict(self):
+    def _sql_to_dict(self) -> None:
+        """
+        The driver function to make the input into the dict format, name of sql:sql
+        :return:
+        """
         if isinstance(self.path, list):
             for idx, val in enumerate(self.path):
                 self._preprocess_sql(org_sql=val, file=str(idx))
@@ -26,7 +30,7 @@ class SqlToDict:
             self.sql_files = get_files(path=self.path)
             for f in self.sql_files:
                 org_sql = open(f, mode="r", encoding="utf-8-sig").read()
-                org_sql = remove_comments(org_sql)
+                org_sql = remove_comments(str1=org_sql)
                 org_sql_split = list(filter(None, org_sql.split(";")))
                 if len(org_sql_split) <= 1:
                     self._preprocess_sql(org_sql=org_sql_split[0], file=f)
@@ -34,7 +38,7 @@ class SqlToDict:
                     for idx, val in enumerate(org_sql_split):
                         self._preprocess_sql(org_sql=val, file=f + "_" + str(idx))
 
-    def _preprocess_sql(self, org_sql: str = "", file: str = "") -> None:
+    def _preprocess_sql(self, org_sql: Optional[str] = "", file: Optional[str] = "") -> None:
         """
         Process the sql, remove database name in the clause/datetime_add/datetime_sub adding quotes
         :param org_sql: the original sql, file: file name for the sql
@@ -109,7 +113,7 @@ class SqlToDict:
                 )
             insert_counter = self.insertion_dict[self.curr_name]
             self.curr_name = self.curr_name + "_INSERTION_{}".format(insert_counter)
-            self.sql_files_dict[self.curr_name] = find_select(ret_sql)
+            self.sql_files_dict[self.curr_name] = find_select(q=ret_sql)
         elif ret_sql.find("DELETE FROM") != -1:
             # find the current name in the insertion dict and how many times it has been deleted
             self.curr_name = re.sub(rem_regex, "", ret_sql.split(" ")[2])
@@ -121,7 +125,7 @@ class SqlToDict:
                 )
             delete_counter = self.deletion_dict[self.curr_name]
             self.curr_name = self.curr_name + "_DELETION_{}".format(delete_counter)
-            self.sql_files_dict[self.curr_name] = find_select(ret_sql)
+            self.sql_files_dict[self.curr_name] = find_select(q=ret_sql)
         else:
             if os.path.isfile(file):
                 name = os.path.basename(file)[:-4]

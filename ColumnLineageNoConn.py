@@ -1,9 +1,14 @@
 from sqlglot import parse_one, exp
+from sqlglot import expressions
+from typing import Optional, List, Tuple
 import os
+
+shared_conditions = [exp.Where, exp.EQ, exp.Group, exp.Having, exp.Order]
+shared_conditions_with_table = [exp.Where, exp.EQ, exp.Group, exp.Having, exp.Order, exp.From, exp.Join]
 
 
 class ColumnLineageNoConn:
-    def __init__(self, sql: str = "", input_table_dict: dict = None):
+    def __init__(self, sql: Optional[str] = "", input_table_dict: Optional[dict] = None):
         self.column_dict = {}
         self.table_alias_dict = {}
         self.cte_table_dict = {}
@@ -15,87 +20,131 @@ class ColumnLineageNoConn:
         self.all_subquery_table = []
         self.sub_tables = []
         self.sub_cols = []
-        self.run_cte_lineage()
+        self._run_cte_lineage()
         # Everything other than CTEs, and pop the CTE tree
         for with_sql in self.sql_ast.find_all(exp.With):
             with_sql.pop()
-        self.sub_shared_col_conds(self.sql_ast)
-        self.run_lineage(self.sql_ast, False)
+        self._sub_shared_col_conds(sql_ast=self.sql_ast)
+        self._run_lineage(self.sql_ast, False)
         #print(self.cte_dict)
         #print(self.column_dict)
         #print(self.table_list)
 
-    def run_lineage(self, sql_ast, subquery_flag):
+    def _run_lineage(self, sql_ast: expressions = None, subquery_flag: bool = False) -> None:
+        """
+        Run the lineage after all the cte and subquery are resolved
+        :param sql_ast: the ast for the sql
+        :param subquery_flag: check if it is a subquery
+        """
         #print(sql_ast)
         if not subquery_flag:
-            main_tables = self.resolve_table(sql_ast)
-            self.table_list = self.find_all_tables(main_tables)
+            main_tables = self._resolve_table(part_ast=sql_ast)
+            self.table_list = self._find_all_tables(temp_table_list=main_tables)
             self.table_list.extend(self.all_subquery_table)
             self.all_used_col = []
-            self.shared_col_conds(sql_ast, main_tables)
+            self._shared_col_conds(part_ast=sql_ast, used_tables=main_tables)
             self.all_used_col.extend(self.sub_cols)
+            if isinstance(sql_ast, exp.Union) or isinstance(sql_ast, exp.Except) or isinstance(sql_ast, exp.Intersect):
+                for col in sql_ast.find_all(exp.Column):
+                    self.all_used_col.extend(self._find_alias_col(col_sql=col.sql(), temp_table=main_tables))
             self.all_used_col = set(self.all_used_col)
             if sql_ast.find(exp.Select):
                 for projection in sql_ast.find(exp.Select).expressions:
                     col_name = projection.alias_or_name
-                    self.column_dict = self.resolve_proj(projection, col_name, self.column_dict, main_tables)
+                    self.column_dict = self._resolve_proj(projection=projection, col_name=col_name, target_dict=self.column_dict, source_table=main_tables)
         else:
             temp_sub_cols = []
             for col in sql_ast.find_all(exp.Column):
-                temp_sub_cols.extend(self.find_alias_col(col.sql(), self.sub_tables))
+                temp_sub_cols.extend(self._find_alias_col(col_sql=col.sql(), temp_table=self.sub_tables))
             self.sub_cols.extend(temp_sub_cols)
-            print(temp_sub_cols)
+            #print(temp_sub_cols)
 
-    def sub_shared_col_conds(self, sql_ast):
+    def _sub_shared_col_conds(self, sql_ast: expressions = None) -> None:
+        """
+        After the cte are resolved, run the subquery ast that is with the shared conditions(WHERE, GROUP BY, etc)
+        :param sql_ast: the ast without the cte
+        """
         # add in more conditions, including FROM/JOIN
-        for where_sql in sql_ast.find_all(exp.Where):
-            for sub_ast in where_sql.find_all(exp.Subquery):
-                self.sub_tables = self.resolve_table(sub_ast)
-                self.all_subquery_table.extend(self.find_all_tables(self.sub_tables))
-                self.run_lineage(sub_ast, True)
-                sub_ast.pop()
+        for cond in shared_conditions_with_table:
+            for cond_sql in sql_ast.find_all(cond):
+                for sub_ast in cond_sql.find_all(exp.Subquery):
+                    self.sub_tables = self._resolve_table(part_ast=sub_ast)
+                    self.all_subquery_table.extend(self._find_all_tables(temp_table_list=self.sub_tables))
+                    self._run_lineage(sub_ast, True)
+                    sub_ast.pop()
 
-    def sub_shared_col_conds_cte(self, sql_ast):
+    def _sub_shared_col_conds_cte(self, sql_ast: expressions = None) -> Tuple[List, List]:
+        """
+        Run the subquery inside the cte first that is with the shared conditions(WHERE, GROUP BY, etc)
+        :param sql_ast: the ast for the cte
+        """
         all_cte_sub_table = []
         all_cte_sub_cols = []
         # add in more conditions, including FROM/JOIN
-        for where_sql in sql_ast.find_all(exp.Where):
-            for sub_ast in where_sql.find_all(exp.Select):
-                temp_sub_table = self.resolve_table(sub_ast)
-                temp_sub_cols = []
-                for col in sub_ast.find_all(exp.Column):
-                    temp_sub_cols.extend(self.find_alias_col(col.sql(), temp_sub_table))
-                all_cte_sub_table.extend(self.find_all_tables(temp_sub_table))
-                all_cte_sub_cols.extend(temp_sub_cols)
-                sub_ast.pop()
+        for cond in shared_conditions_with_table:
+            for cond_sql in sql_ast.find_all(cond):
+                for sub_ast in cond_sql.find_all(exp.Select):
+                    temp_sub_table = self._resolve_table(part_ast=sub_ast)
+                    temp_sub_cols = []
+                    for col in sub_ast.find_all(exp.Column):
+                        temp_sub_cols.extend(self._find_alias_col(col_sql=col.sql(), temp_table=temp_sub_table))
+                    all_cte_sub_table.extend(self._find_all_tables(temp_table_list=temp_sub_table))
+                    all_cte_sub_cols.extend(temp_sub_cols)
+                    sub_ast.pop()
         return all_cte_sub_table, all_cte_sub_cols
 
-    def run_cte_lineage(self):
+    def _run_cte_lineage(self):
+        """
+        Run the lineage information for all the cte
+        """
         for cte in self.sql_ast.find_all(exp.CTE):
-            all_cte_sub_table, all_cte_sub_cols = self.sub_shared_col_conds_cte(cte)
+            all_cte_sub_table, all_cte_sub_cols = self._sub_shared_col_conds_cte(sql_ast=cte)
             self.all_used_col = []
             temp_cte_dict = {}
-            temp_cte_table = self.resolve_table(cte)
+            temp_cte_table = self._resolve_table(part_ast=cte)
             cte_name = cte.find(exp.TableAlias).alias_or_name
-            self.cte_table_dict[cte_name] = list(set(self.find_all_tables(temp_cte_table) + all_cte_sub_table))
+            self.cte_table_dict[cte_name] = list(set(self._find_all_tables(temp_table_list=temp_cte_table) + all_cte_sub_table))
             # Resolving shared conditions
-            self.shared_col_conds(cte, temp_cte_table)
+            self._shared_col_conds(part_ast=cte, used_tables=temp_cte_table)
             self.all_used_col.extend(all_cte_sub_cols)
             self.all_used_col = set(self.all_used_col)
             # Resolving the projection
             for projection in cte.find(exp.Select).expressions:
                 col_name = projection.alias_or_name
-                temp_cte_dict = self.resolve_proj(projection, col_name, temp_cte_dict, temp_cte_table)
+                temp_cte_dict = self._resolve_proj(projection=projection, col_name=col_name, target_dict=temp_cte_dict, source_table=temp_cte_table)
             self.cte_dict[cte_name] = temp_cte_dict
 
-    def resolve_proj(self, projection, col_name, target_dict, source_table):
+    def _resolve_proj(self, projection: expressions = None, col_name: Optional[str] = "", target_dict: Optional[dict] = None, source_table: Optional[List] = None) -> dict:
+        """
+        Resolve the projection given the projection expression
+        :param projection: the given projection
+        :param col_name: the column name
+        :param target_dict: the dict it is outputting to
+        :param source_table: all the source tables that this column might originate from
+        """
         # Resolve count(*) with no alias, potentially other aggregations, MIN, MAX, SUM
-        if isinstance(projection, exp.Count) or isinstance(projection.unalias(), exp.Count):
+        if isinstance(projection, exp.Count) or isinstance(projection.unalias(), exp.Count)\
+                or isinstance(projection, exp.Avg) or isinstance(projection.unalias(), exp.Avg)\
+                or isinstance(projection, exp.Max) or isinstance(projection.unalias(), exp.Max)\
+                or isinstance(projection, exp.Min) or isinstance(projection.unalias(), exp.Min)\
+                or isinstance(projection, exp.Sum) or isinstance(projection.unalias(), exp.Sum):
             if isinstance(projection, exp.Count):
                 col_name = "count"
-                self.resolve_agg_star(col_name, projection, source_table)
+                self._resolve_agg_star(col_name=col_name, projection=projection, used_tables=source_table)
+            elif isinstance(projection, exp.Avg):
+                col_name = "avg"
+                self._resolve_agg_star(col_name=col_name, projection=projection, used_tables=source_table)
+            elif isinstance(projection, exp.Max):
+                col_name = "max"
+                self._resolve_agg_star(col_name=col_name, projection=projection, used_tables=source_table)
+            elif isinstance(projection, exp.Min):
+                col_name = "min"
+                self._resolve_agg_star(col_name=col_name, projection=projection, used_tables=source_table)
+            elif isinstance(projection, exp.Sum):
+                col_name = "sum"
+                self._resolve_agg_star(col_name=col_name, projection=projection, used_tables=source_table)
             else:
-                self.resolve_agg_star(col_name, projection.unalias(), source_table)
+                self._resolve_agg_star(col_name=col_name, projection=projection.unalias(), used_tables=source_table)
         else:
             proj_columns = []
             # Resolve only *
@@ -106,7 +155,7 @@ class ColumnLineageNoConn:
                         # every column from there will be a column with that name
                         for per_star_col in star_cols:
                             target_dict[per_star_col] = sorted(
-                                list(set(self.find_alias_col(per_star_col, source_table)).union(
+                                list(set(self._find_alias_col(col_sql=per_star_col, temp_table=source_table)).union(
                                     self.all_used_col)))
                     elif t_name in self.cte_dict.keys():
                         star_cols = list(self.cte_dict[t_name].keys())
@@ -127,7 +176,7 @@ class ColumnLineageNoConn:
                         # every column from there will be a column with that name
                         for per_star_col in star_cols:
                             target_dict[per_star_col] = sorted(
-                                list(set(self.find_alias_col(per_star_col, source_table)).union(
+                                list(set(self._find_alias_col(col_sql=per_star_col, temp_table=source_table)).union(
                                     self.all_used_col)))
                     # If from another CTE, get all columns from there
                     elif t_name in self.cte_dict.keys():
@@ -140,25 +189,34 @@ class ColumnLineageNoConn:
                         target_dict[p.sql()] = [p.sql()] + (list(self.all_used_col))
                 else:
                     # one projection can have many columns, append first
-                    proj_columns.extend(self.find_alias_col(p.sql(), source_table))
+                    proj_columns.extend(self._find_alias_col(col_sql=p.sql(), temp_table=source_table))
             if proj_columns:
                 target_dict[col_name] = sorted(list(set(proj_columns).union(self.all_used_col)))
         return target_dict
 
-    def resolve_table(self, part_ast):
+    def _resolve_table(self, part_ast: expressions = None) -> List:
+        """
+        Find the tables in the given ast
+        :param part_ast: the ast to find the table
+        """
         temp_table_list = []
-        # Resolve FROM, COMBINE IT WITH JOIN/UNION/INTERSECT/EXCEPT
+        # Resolve FROM
         for table_sql in part_ast.find_all(exp.From):
             for table in table_sql.find_all(exp.Table):
-                temp_table_list = self.find_table(table, temp_table_list)
+                temp_table_list = self._find_table(table=table, temp_table_list=temp_table_list)
         # Resolve JOIN
         for table_sql in part_ast.find_all(exp.Join):
             for table in table_sql.find_all(exp.Table):
-                temp_table_list = self.find_table(table, temp_table_list)
+                temp_table_list = self._find_table(table=table, temp_table_list=temp_table_list)
         return temp_table_list
 
-    def find_table(self, table, temp_table_list):
-        # Update table alias and find all aliased used table names
+    def _find_table(self, table: expressions = None, temp_table_list: Optional[List] = None) -> List:
+        """
+        Update table alias and find all aliased used table names
+        :param table: the expression with the table
+        :param temp_table_list: temporary list of tables for appending the used tables
+        :return:
+        """
         if table.alias == "":
             self.table_alias_dict[table.sql()] = table.sql()
             temp_table_list.append(table.sql())
@@ -169,8 +227,12 @@ class ColumnLineageNoConn:
                 temp_table_list.append(temp[0])
         return temp_table_list
 
-    def find_all_tables(self, temp_table_list):
-        # Update the used table names, such as if a CTE, update it with the dependant tables
+    def _find_all_tables(self, temp_table_list: Optional[List] = None) -> List:
+        """
+        Update the used table names, such as if a CTE, update it with the dependant tables
+        :param temp_table_list: temporary list of tables for appending the used tables
+        :return:
+        """
         ret_table = []
         for i in temp_table_list:
             table_name = i
@@ -182,29 +244,25 @@ class ColumnLineageNoConn:
                 ret_table.append(table_name)
         return ret_table
 
-    def shared_col_conds(self, part_ast, used_tables):
+    def _shared_col_conds(self, part_ast: expressions = None, used_tables: Optional[List] = None):
+        """
+        Extract all the columns in the shared conditions(WHERE, GROUP BY, etc)
+        :param part_ast: the ast of the sql to extract
+        :param used_tables: the tables that this sql uses
+        """
         # COMBINE THE CONDITIONS
-        for where_sql in part_ast.find_all(exp.Where):
-            for where_col in where_sql.find_all(exp.Column):
-                self.all_used_col.extend(self.find_alias_col(where_col.sql(), used_tables))
+        for cond in shared_conditions:
+            for cond_sql in part_ast.find_all(cond):
+                for cond_col in cond_sql.find_all(exp.Column):
+                    self.all_used_col.extend(self._find_alias_col(col_sql=cond_col.sql(), temp_table=used_tables))
 
-        for on_sql in part_ast.find_all(exp.EQ):
-            for on_col in on_sql.find_all(exp.Column):
-                self.all_used_col.extend(self.find_alias_col(on_col.sql(), used_tables))
-
-        for group_sql in part_ast.find_all(exp.Group):
-            for group_col in group_sql.find_all(exp.Column):
-                self.all_used_col.extend(self.find_alias_col(group_col.sql(), used_tables))
-
-        for having_sql in part_ast.find_all(exp.Having):
-            for having_col in having_sql.find_all(exp.Column):
-                self.all_used_col.extend(self.find_alias_col(having_col.sql(), used_tables))
-
-        for order_sql in part_ast.find_all(exp.Order):
-            for order_col in order_sql.find_all(exp.Column):
-                self.all_used_col.extend(self.find_alias_col(order_col.sql(), used_tables))
-
-    def find_alias_col(self, col_sql, temp_table):
+    def _find_alias_col(self, col_sql: Optional[str] = "", temp_table: Optional[List] = None) -> List:
+        """
+        Find the columns and its alias and dependencies if it is from a cte
+        :param col_sql: the sql to the column
+        :param temp_table: the table that the sql uses
+        :return:
+        """
         temp = col_sql.split(".")
         # trying to deduce the table if all possible tables are eliminated
         elim_table = []
@@ -234,7 +292,13 @@ class ColumnLineageNoConn:
                 return [t + "." + temp[1]]
         return [col_sql]
 
-    def resolve_agg_star(self, col_name, projection, used_tables):
+    def _resolve_agg_star(self, col_name: Optional[str] = "", projection: expressions = None, used_tables: Optional[List] = None):
+        """
+        Trying to resolve the * and append appropriate columns if the table is able to resolved
+        :param col_name: the name of the column
+        :param projection: the expression of the sql
+        :param used_tables: the tables that are used
+        """
         if projection.find(exp.Star):
             # * with a table name
             if projection.find(exp.Identifier):
@@ -245,11 +309,11 @@ class ColumnLineageNoConn:
                 if t_name in self.input_table_dict.keys():
                     star_cols = []
                     for s in self.input_table_dict[t_name]:
-                        star_cols.extend(self.find_alias_col(s, used_tables))
+                        star_cols.extend(self._find_alias_col(col_sql=s, temp_table=used_tables))
                 elif t_name in self.cte_dict.keys():
                     star_cols = []
                     for s in list(self.cte_dict[t_name].keys()):
-                        star_cols.extend(self.find_alias_col(s, used_tables))
+                        star_cols.extend(self._find_alias_col(col_sql=s, temp_table=used_tables))
                 else:
                     star_cols = [t_name + ".*"]
                 self.column_dict[col_name] = sorted(list(set(star_cols).union(self.all_used_col)))
@@ -259,8 +323,4 @@ class ColumnLineageNoConn:
 
 
 if __name__ == "__main__":
-    sql = "WITH agetbl AS ( SELECT ad.subject_id FROM mimiciii_clinical.admissions ad INNER JOIN patients p ON ad.subject_id = p.subject_id WHERE DATETIME_DIFF(ad.admittime, p.dob, 'YEAR'::TEXT) > 15 group by ad.subject_id HAVING ad.subject_id > 5 ),bun as ( SELECT width_bucket(valuenum,0,280,280) AS bucket,le.* FROM mimiciii_clinical.labevents le INNER JOIN agetbl ON le.subject_id = agetbl.subject_id WHERE itemid IN (51006) ) SELECT bucket as blood_urea_nitrogen,count(bun.*) as c FROM bun GROUP BY bucket ORDER BY bucket;"
-    #sql = "DELETE FROM Customers WHERE CustomerName='Alfreds Futterkiste';"
-    #input_table_dict = {"mimiciii_clinical.labevents": ['itemid', 'valuenum', 'subject_id']}
-    input_table_dict = {}
-    lineagexNoConn(sql, input_table_dict)
+    pass
