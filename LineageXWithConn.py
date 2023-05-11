@@ -5,7 +5,7 @@ from psycopg2 import OperationalError
 from psycopg2.extensions import connection
 from stack import *
 from ColumnLineage import ColumnLineage
-from typing import Tuple, List, Any
+from typing import Tuple, List, Any, Optional, Union
 from utils import produce_json
 from SqlToDict import SqlToDict
 
@@ -15,11 +15,11 @@ rem_regex = re.compile(r"[^a-zA-Z0-9_.]")
 class LineageXWithConn:
     def __init__(
         self,
-        path: str = "",
-        search_schema: str = "public",
-        url: str = "",
-        username: str = "",
-        password: str = "",
+        path: Optional[Union[List, str]] = None,
+        search_schema: Optional[str] = "public",
+        url: Optional[str] = "",
+        username: Optional[str] = "",
+        password: Optional[str] = "",
     ) -> None:
         self.part_tables = None
         self.df = None
