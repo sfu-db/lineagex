@@ -94,54 +94,32 @@ def find_select(q: str = "") -> str:
 def produce_json(
     output_dict: dict = None, engine: connection = None, search_schema: str = ""
 ) -> dict:
-    table_to_model_dict = {}
+    # Get all the table names that are not in the output_dict(mostly base tables)
+    all_tables = []
     for key, val in output_dict.items():
-        table_to_model_dict[val["table_name"]] = key
-
-    dep_dict = {}
-    for key, val in output_dict.items():
-        if key not in dep_dict.keys():
-            dep_dict[key] = {}
-            dep_dict[key]["upstream_tables"] = val["tables"]
-        else:
-            dep_dict[key]["upstream_tables"] = val["tables"]
-        for key_name in val["tables"]:
-            # key_name = table_to_model_dict.get(i, i)
-            if key_name not in dep_dict.keys():
-                dep_dict[key_name] = {}
-                dep_dict[key_name]["downstream_tables"] = [key]
-            else:
-                if "downstream_tables" not in dep_dict[key_name].keys():
-                    dep_dict[key_name]["downstream_tables"] = [key]
-                else:
-                    dep_dict[key_name]["downstream_tables"].append(key)
+        all_tables.extend(val['tables'])
+    all_tables = list(set(all_tables) - set(output_dict.keys()))
     base_table_dict = {}
+    # If no conn is provided, try to guess the base table's columns
     base_table_noconn_dict = {}
     if not engine and not search_schema:
         base_table_noconn_dict = _guess_base_table(output_dict)
-    for key, val in dep_dict.items():
-        if "upstream_tables" not in list(val.keys()):
-            val["upstream_tables"] = []
-        if "downstream_tables" not in list(val.keys()):
-            val["downstream_tables"] = []
-        if key in list(output_dict.keys()):
-            val["is_model"] = True
-        else:
-            base_table_dict[key] = {}
-            base_table_dict[key]["tables"] = [""]
-            base_table_dict[key]["columns"] = {}
-            # if db conn is provided
-            if engine and search_schema:
-                if key.endswith("_ANALYZED"):
-                    cols = find_column(key[:-9], engine, search_schema)
-                else:
-                    cols = find_column(key, engine, search_schema)
+    # Iterate through the base tables, and add into the output_dict
+    for t in all_tables:
+        base_table_dict[t] = {}
+        base_table_dict[t]["tables"] = [""]
+        base_table_dict[t]["columns"] = {}
+        # if db conn is provided
+        if engine and search_schema:
+            if t.endswith("_ANALYZED"):
+                cols = find_column(t[:-9], engine, search_schema)
             else:
-                cols = base_table_noconn_dict.get(key, [])
-            for i in cols:
-                base_table_dict[key]["columns"][i] = [""]
-            base_table_dict[key]["table_name"] = str(key)
-            val["is_model"] = False
+                cols = find_column(t, engine, search_schema)
+        else:
+            cols = base_table_noconn_dict.get(t, [])
+        for i in cols:
+            base_table_dict[t]["columns"][i] = [""]
+        base_table_dict[t]["table_name"] = str(t)
     base_table_dict.update(output_dict)
     with open("output.json", "w") as outfile:
         json.dump(base_table_dict, outfile)
