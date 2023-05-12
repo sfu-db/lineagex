@@ -1,2 +1,0 @@
-psycopg2==2.9.6
-sqlglot==12.0.0
