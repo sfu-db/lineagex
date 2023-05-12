@@ -10,16 +10,14 @@ class lineagex:
             self,
             sql: Optional[Union[List, str]] = None,
             search_schema: Optional[str] = "public",
-            url: Optional[str] = None,
-            username: Optional[str] = None,
-            password: Optional[str] = None,
+            conn_string: Optional[str] = None,
     ) -> None:
         if sql is None:
             raise ValueError("the SQL input cannot be empty, please input a list of sql or path to sql")
         elif not isinstance(sql, list) and not isinstance(sql, str):
             raise ValueError("wrong SQL input format, please input a list of sql or path to sql")
-        if url and username and password:
-            lx = LineageXWithConn(sql, search_schema, url, username, password)
+        if conn_string:
+            lx = LineageXWithConn(sql, search_schema, conn_string)
             self.output_dict = lx.output_dict
         else:
             lx = LineageXNoConn(sql, search_schema)

@@ -16,21 +16,10 @@ class LineageXWithConn:
         self,
         path: Optional[Union[List, str]] = None,
         search_schema: Optional[str] = "public",
-        url: Optional[str] = "",
-        username: Optional[str] = "",
-        password: Optional[str] = "",
+        conn_string: Optional[str] = "",
     ) -> None:
         self.part_tables = None
         self.df = None
-        self.conn_string = (
-            url.split("//")[0]
-            + "//"
-            + username
-            + ":"
-            + password
-            + "@"
-            + url.split("//")[1]
-        )
         self.schema = search_schema.split(",")[0]
         self.search_schema = search_schema
         self.new_view_list = []
@@ -40,6 +29,8 @@ class LineageXWithConn:
         self.creation_list = []
         self.finished_list = []
         self.output_dict = {}
+        self.conn = self._check_db_connection(conn_string)
+        self.conn.autocommit = True
         self._run_table_lineage()
 
     def _run_table_lineage(self) -> None:
@@ -47,8 +38,6 @@ class LineageXWithConn:
         The driver function to extract the table lineage information
         :return: output an interactive html for the table lineage information
         """
-        self.conn = self._check_db_connection()
-        self.conn.autocommit = True
         self.part_tables, self.schema_list = self._get_part_tables()
         self.sql_files_dict = SqlToDict(self.path, self.schema_list).sql_files_dict
         for name, sql in self.sql_files_dict.items():
@@ -208,17 +197,17 @@ class LineageXWithConn:
         except Exception as e:
             print(e)
 
-    def _check_db_connection(self) -> connection:
+    def _check_db_connection(self, conn_string: Optional[str] = "") -> connection:
         """
         Check if the conn_string is good
         :return: the sqlalchemy engine
         """
         try:
-            psycopg2.connect(self.conn_string)
+            psycopg2.connect(conn_string)
             print("database connected")
         except OperationalError:
             print("authentication error")
-        return psycopg2.connect(self.conn_string)
+        return psycopg2.connect(conn_string)
 
     def _get_part_tables(self) -> Tuple[dict, List]:
         """

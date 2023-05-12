@@ -4,6 +4,7 @@ version = "0.0.1"
 description = "A column lineage tool"
 authors = ["zshandy <zshandy@gmail.com>"]
 license = "MIT"
+readme = "README.md" # Markdown files are supported
 
 [tool.poetry.dependencies]
 python = "^3.6"
