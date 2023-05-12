@@ -1,11 +1,8 @@
-index.html
-output.json
 __pycache__
 dist
-test.py
-lineage.py
-lineagex.py
 requirements.txt
 README.rst
 /lineagex/test_lineage/
 /lineagex/test.py
+/lineagex/index.html
+/lineagex/output.json
