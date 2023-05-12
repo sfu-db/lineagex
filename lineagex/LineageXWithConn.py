@@ -3,11 +3,12 @@ import re
 import psycopg2
 from psycopg2 import OperationalError
 from psycopg2.extensions import connection
-from stack import *
-from ColumnLineage import ColumnLineage
 from typing import Tuple, List, Optional, Union
-from utils import produce_json
-from SqlToDict import SqlToDict
+
+from lineagex.utils import produce_json
+from lineagex.SqlToDict import SqlToDict
+from lineagex.stack import *
+from lineagex.ColumnLineage import ColumnLineage
 
 
 class LineageXWithConn:

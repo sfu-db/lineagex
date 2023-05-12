@@ -1,6 +1,7 @@
 index.html
 output.json
 __pycache__
+dist
 test.py
 lineage.py
 lineagex.py

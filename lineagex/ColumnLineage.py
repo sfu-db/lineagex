@@ -3,9 +3,9 @@ from sqlglot import parse_one, exp
 from sqlglot.expressions import CTE
 from sqlglot import expressions
 from psycopg2.extensions import connection
-
 from typing import List, Tuple, Optional
-from utils import find_column
+
+from lineagex.utils import find_column
 
 
 class ColumnLineage:

@@ -1,6 +1,6 @@
 import re
 import os
-from utils import get_files, find_select, remove_comments
+from lineagex.utils import get_files, find_select, remove_comments
 from typing import List, Optional
 
 rem_regex = re.compile(r"[^a-zA-Z0-9_.]")
