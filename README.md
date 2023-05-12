@@ -48,7 +48,7 @@ lineagex("/path/to/SQL/", "schema1, public", "postgresql://username:password@ser
 ```
 In the output.json file, it can be read by other programs and analyzed for other uses, the general format is as follows
 (using the example from above):
-```json
+```javascript
 {
   schema1.other_table: {
     tables: [], 
