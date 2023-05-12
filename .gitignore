@@ -2,7 +2,7 @@ __pycache__
 dist
 requirements.txt
 README.rst
-/lineagex/test_lineage/
-/lineagex/test.py
-/lineagex/index.html
-/lineagex/output.json
+test.py
+test_lineage/
+index.html
+output.json
