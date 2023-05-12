@@ -5,7 +5,7 @@ from sqlglot import expressions
 from psycopg2.extensions import connection
 from typing import List, Tuple, Optional
 
-from lineagex.utils import find_column
+from .utils import find_column
 
 
 class ColumnLineage:
