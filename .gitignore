@@ -5,3 +5,5 @@ dist
 test.py
 lineage.py
 lineagex.py
+requirements.txt
+README.rst
