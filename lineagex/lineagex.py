@@ -1,7 +1,8 @@
-from lineagex.LineageXWithConn import LineageXWithConn
-from lineagex.LineageXNoConn import LineageXNoConn
 import os
 from typing import Union, List, Optional
+
+from .LineageXWithConn import LineageXWithConn
+from .LineageXNoConn import LineageXNoConn
 
 
 class lineagex:

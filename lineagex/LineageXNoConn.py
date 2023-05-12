@@ -1,7 +1,8 @@
-from lineagex.utils import produce_json
-from lineagex.SqlToDict import SqlToDict
-from lineagex.ColumnLineageNoConn import ColumnLineageNoConn
 from typing import Optional
+
+from .utils import produce_json
+from .SqlToDict import SqlToDict
+from .ColumnLineageNoConn import ColumnLineageNoConn
 
 
 class LineageXNoConn:

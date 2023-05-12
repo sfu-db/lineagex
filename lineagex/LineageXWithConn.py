@@ -5,10 +5,10 @@ from psycopg2 import OperationalError
 from psycopg2.extensions import connection
 from typing import Tuple, List, Optional, Union
 
-from lineagex.utils import produce_json
-from lineagex.SqlToDict import SqlToDict
-from lineagex.stack import *
-from lineagex.ColumnLineage import ColumnLineage
+from .utils import produce_json
+from .SqlToDict import SqlToDict
+from .stack import *
+from .ColumnLineage import ColumnLineage
 
 
 class LineageXWithConn:
