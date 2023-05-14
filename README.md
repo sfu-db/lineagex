@@ -75,12 +75,18 @@ In the output.json file, it can be read by other programs and analyzed for other
 ```
 
 ## How to Navigate the Webpage
-- Start by clicking the star on the right(search) and input a model name that you want to start with.
+![Alt text](/tests/example.png?raw=true "example")
+- Start by clicking the star on the right(select) and input a model name that you want to start with.
 - It should show a table on the canvas with table names and its columns, by clicking the "explore" button on the top right, it will show all the downstream and upstream tables that are related to the columns.
 - Hovering over a column will highlight its downstream and upstream columns as well.
 - You can navigate through the canvas by clicking "explore" on other tables.
-![Alt text](/tests/example.png?raw=true "example")
-
+- The buttons on the right from top to bottom are: 
+  - center the lineage to the middle
+  - zoom out
+  - zoom in
+  - select, to search the targeted table and begin the lineage tracing
+  - expand all columns for all table, CAUTION: this might hinder performance if there are many tables
+  - explore all lineage, this would trace all downstream and upstream tables recursively and all columns are shrunk by default for performance
 
 ## FAQ
 - `"not init data"` in the webpage:
