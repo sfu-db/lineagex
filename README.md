@@ -64,12 +64,12 @@ In the output.json file, it can be read by other programs and analyzed for other
     }, 
     table_name: schema1.table1
   }, 
-  schema1.table2: {
+  table2: {
     tables: [schema1.table1], 
     columns: {
       new_column1: [schema1.table1.columns1], new_column2: [schema1.table1.column2]
     }, 
-    table_name: schema1.table2
+    table_name: table2
   }, 
 }
 ```
