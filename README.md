@@ -79,6 +79,8 @@ In the output.json file, it can be read by other programs and analyzed for other
 - It should show a table on the canvas with table names and its columns, by clicking the "explore" button on the top right, it will show all the downstream and upstream tables that are related to the columns.
 - Hovering over a column will highlight its downstream and upstream columns as well.
 - You can navigate through the canvas by clicking "explore" on other tables.
+![Alt text](/tests/example.png?raw=true "example")
+
 
 ## FAQ
 - `"not init data"` in the webpage:
