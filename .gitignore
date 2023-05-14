@@ -4,5 +4,8 @@ requirements.txt
 README.rst
 test.py
 test_lineage/
+test_lineage1/
 index.html
 output.json
+app.js
+vendor.js

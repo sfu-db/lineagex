@@ -1,5 +1,6 @@
 import os
 from typing import Union, List, Optional
+import pkgutil
 
 from .LineageXWithConn import LineageXWithConn
 from .LineageXNoConn import LineageXNoConn
@@ -18,11 +19,22 @@ class lineagex:
             raise ValueError("wrong SQL input format, please input a list of sql or path to sql")
         if conn_string:
             lx = LineageXWithConn(sql, search_schema, conn_string)
+            self._save_js_file()
             self.output_dict = lx.output_dict
         else:
             lx = LineageXNoConn(sql, search_schema)
+            self._save_js_file()
             self.output_dict = lx.output_dict
 
+    def _save_js_file(self):
+        data = pkgutil.get_data(__name__, "app.js")
+        js_file = open("app.js", "w", encoding="utf-8")
+        js_file.write(data.decode("utf-8") )
+        js_file.close()
+        data = pkgutil.get_data(__name__, "vendor.js")
+        js_file = open("vendor.js", "w", encoding="utf-8")
+        js_file.write(data.decode("utf-8") )
+        js_file.close()
 
 if __name__ == '__main__':
     pass
