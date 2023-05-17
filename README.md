@@ -30,7 +30,7 @@ to see the interactive graph.
 ## Installation
 
 ```bash
-pip install lineagex==0.0.2a2
+pip install lineagex
 ```
 
 ## Parameter and output format
