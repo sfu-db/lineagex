@@ -1,6 +1,6 @@
 import re
 import os
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from .utils import get_files, find_select, remove_comments
 
@@ -8,7 +8,7 @@ rem_regex = re.compile(r"[^a-zA-Z0-9_.]")
 
 
 class SqlToDict:
-    def __init__(self, path: Optional[str] = "", schema_list: Optional[List] = None) -> None:
+    def __init__(self, path: Optional[Union[List, str]] = "", schema_list: Optional[List] = None) -> None:
         self.path = path
         self.schema_list = schema_list
         self.sql_files = []
@@ -33,11 +33,16 @@ class SqlToDict:
                 org_sql = open(f, mode="r", encoding="utf-8-sig").read()
                 org_sql = remove_comments(str1=org_sql)
                 org_sql_split = list(filter(None, org_sql.split(";")))
+                # pop DROP IF EXISTS
+                if len(org_sql_split) == 2:
+                    temp_str = org_sql_split[0].upper()
+                    if temp_str.find("SELECT ") == -1 and (temp_str.startswith("DROP TABLE IF EXISTS") or temp_str.startswith("DROP VIEW IF EXISTS")):
+                        org_sql_split.pop(0)
                 if len(org_sql_split) <= 1:
-                    self._preprocess_sql(org_sql=org_sql_split[0], file=f)
+                    self._preprocess_sql(org_sql=org_sql_split[0], file=os.path.basename(f))
                 else:
                     for idx, val in enumerate(org_sql_split):
-                        self._preprocess_sql(org_sql=val, file=f + "_" + str(idx))
+                        self._preprocess_sql(org_sql=val, file=os.path.basename(f) + "_" + str(idx))
 
     def _preprocess_sql(self, org_sql: Optional[str] = "", file: Optional[str] = "") -> None:
         """
@@ -89,19 +94,21 @@ class SqlToDict:
         if re.search(
             "CREATE VIEW IF NOT EXISTS", ret_sql, flags=re.IGNORECASE
         ) or re.search("CREATE TABLE IF NOT EXISTS", ret_sql, flags=re.IGNORECASE):
-            temp = ret_sql.split(" ")
-            ret_sql = ret_sql[ret_sql.index(temp[7]) :]
-            if temp[5] in self.sql_files_dict.keys():
-                print("WARNING: duplicate script detected for {}".format(temp[5]))
-            self.sql_files_dict[temp[5]] = ret_sql
+            if ret_sql.upper().find("SELECT ") != -1:
+                temp = ret_sql.split(" ")
+                ret_sql = ret_sql[ret_sql.index(temp[7]) :]
+                if temp[5] in self.sql_files_dict.keys():
+                    print("WARNING: duplicate script detected for {}".format(temp[5]))
+                self.sql_files_dict[temp[5]] = ret_sql
         elif re.search("CREATE VIEW", ret_sql, flags=re.IGNORECASE) or re.search(
             "CREATE TABLE", ret_sql, flags=re.IGNORECASE
         ):
-            temp = ret_sql.split(" ")
-            ret_sql = ret_sql[ret_sql.index(temp[4]) :]
-            if temp[2] in self.sql_files_dict.keys():
-                print("WARNING: duplicate script detected for {}".format(temp[2]))
-            self.sql_files_dict[temp[2]] = ret_sql
+            if ret_sql.upper().find("SELECT ") != -1:
+                temp = ret_sql.split(" ")
+                ret_sql = ret_sql[ret_sql.index(temp[4]) :]
+                if temp[2] in self.sql_files_dict.keys():
+                    print("WARNING: duplicate script detected for {}".format(temp[2]))
+                self.sql_files_dict[temp[2]] = ret_sql
         # adjust to INSERT/DELETE/SELECT/
         elif ret_sql.find("INSERT INTO") != -1:
             # find the current name in the insertion dict and how many times it has been inserted
