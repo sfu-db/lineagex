@@ -12,7 +12,7 @@ from lineagex.lineagex import lineagex
 
 lineagex("/path/to/SQL/", "search, path, schemas", "postgresql://username:password@server:port/database")
 ```
-The input can be a path to a SQL file, a path to the folder containing many SQL files or simply a list of SQL strings in Python
+The input can be a path to a SQL file, a path to the folder containing many SQL files or simply a list of SQL strings in Python.
 Optionally, you can provide less information with only the SQLs, but providing the "search_path" and database connection is highly recommended for the best result. 
 ```python
 from lineagex.lineagex import lineagex
