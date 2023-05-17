@@ -6,22 +6,18 @@ Have you ever wondered what is the column level relationship among your SQL scri
 Don't worry, this tool is intended to help you by creating an interactive graph on a webpage to explore the 
 column level lineage among them(Currently only supports Postgres, other connection types or dialects are under development).
 
-What you need is one line of code:
-
-```python
-from lineagex.lineagex import lineagex
-
-lineagex("/path/to/SQL/" or [a_list_of_SQL_string])
-```
-That is the bare minimum input, the input can be a path to a SQL file, a path to the folder containing many SQL files or 
-simply a list of SQL strings in Python. 
-
-Optionally, you can provide more information such as the schemas to the "search_path" in Postgres and 
-the connection string to the database to achieve a better result. 
+Here is a [demo](https://zshandy.github.io/lineagex-demo/) with the [mimic-iv concepts_postgres](https://github.com/MIT-LCP/mimic-code/tree/main/mimic-iv/concepts_postgres) files([navigation instructions](#how-to-navigate-the-webpage)) and that is created with one line of code:
 ```python
 from lineagex.lineagex import lineagex
 
 lineagex("/path/to/SQL/", "search, path, schemas", "postgresql://username:password@server:port/database")
+```
+The input can be a path to a SQL file, a path to the folder containing many SQL files or simply a list of SQL strings in Python
+Optionally, you can provide less information with only the SQLs, but providing the "search_path" and database connection is highly recommended for the best result. 
+```python
+from lineagex.lineagex import lineagex
+
+lineagex("/path/to/SQL/" or [a_list_of_SQL_string])
 ```
 
 The output would be a output.json and a index.html file in the folder. Start a local http server and you would be able
