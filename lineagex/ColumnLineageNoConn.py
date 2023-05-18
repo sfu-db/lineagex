@@ -36,28 +36,38 @@ class ColumnLineageNoConn:
         :param sql_ast: the ast for the sql
         :param subquery_flag: check if it is a subquery
         """
-        #print(sql_ast)
         if not subquery_flag:
+            self.all_used_col = []
+            if isinstance(sql_ast, exp.Union) or isinstance(sql_ast, exp.Except) or isinstance(sql_ast, exp.Intersect):
+                self._handle_union(sql_ast=sql_ast)
             main_tables = self._resolve_table(part_ast=sql_ast)
             self.table_list = self._find_all_tables(temp_table_list=main_tables)
             self.table_list.extend(self.all_subquery_table)
-            self.all_used_col = []
             self._shared_col_conds(part_ast=sql_ast, used_tables=main_tables)
             self.all_used_col.extend(self.sub_cols)
-            if isinstance(sql_ast, exp.Union) or isinstance(sql_ast, exp.Except) or isinstance(sql_ast, exp.Intersect):
-                for col in sql_ast.find_all(exp.Column):
-                    self.all_used_col.extend(self._find_alias_col(col_sql=col.sql(), temp_table=main_tables))
             self.all_used_col = set(self.all_used_col)
             if sql_ast.find(exp.Select):
                 for projection in sql_ast.find(exp.Select).expressions:
                     col_name = projection.alias_or_name
                     self.column_dict = self._resolve_proj(projection=projection, col_name=col_name, target_dict=self.column_dict, source_table=main_tables)
+            self.table_list = list(set(self.table_list))
         else:
             temp_sub_cols = []
             for col in sql_ast.find_all(exp.Column):
                 temp_sub_cols.extend(self._find_alias_col(col_sql=col.sql(), temp_table=self.sub_tables))
             self.sub_cols.extend(temp_sub_cols)
             #print(temp_sub_cols)
+
+    def _handle_union(self, sql_ast: expressions = None) -> None:
+        if isinstance(sql_ast, exp.Union) or isinstance(sql_ast, exp.Except) or isinstance(sql_ast, exp.Intersect):
+            self._handle_union(sql_ast=sql_ast.left)
+            self._handle_union(sql_ast=sql_ast.right)
+        else:
+            main_tables = self._resolve_table(part_ast=sql_ast)
+            self._shared_col_conds(part_ast=sql_ast, used_tables=main_tables)
+            for col in sql_ast.find_all(exp.Column):
+                self.all_used_col.extend(self._find_alias_col(col_sql=col.sql(), temp_table=main_tables))
+            return
 
     def _sub_shared_col_conds(self, sql_ast: expressions = None) -> None:
         """
@@ -105,8 +115,18 @@ class ColumnLineageNoConn:
             cte_name = cte.find(exp.TableAlias).alias_or_name
             self.cte_table_dict[cte_name] = list(set(self._find_all_tables(temp_table_list=temp_cte_table) + all_cte_sub_table))
             # Resolving shared conditions
-            self._shared_col_conds(part_ast=cte, used_tables=temp_cte_table)
-            self.all_used_col.extend(all_cte_sub_cols)
+            if cte.find(exp.Union):
+                if cte.find(exp.Union).depth == cte.depth + 1:
+                    self._handle_union(sql_ast=cte.find(exp.Union))
+            elif cte.find(exp.Except):
+                if cte.find(exp.Except).depth == cte.depth + 1:
+                    self._handle_union(sql_ast=cte.find(exp.Union))
+            elif cte.find(exp.Intersect):
+                if cte.find(exp.Intersect).depth == cte.depth + 1:
+                    self._handle_union(sql_ast=cte.find(exp.Union))
+            else:
+                self._shared_col_conds(part_ast=cte, used_tables=temp_cte_table)
+                self.all_used_col.extend(all_cte_sub_cols)
             self.all_used_col = set(self.all_used_col)
             # Resolving the projection
             for projection in cte.find(exp.Select).expressions:
@@ -123,28 +143,24 @@ class ColumnLineageNoConn:
         :param source_table: all the source tables that this column might originate from
         """
         # Resolve count(*) with no alias, potentially other aggregations, MIN, MAX, SUM
-        if isinstance(projection, exp.Count) or isinstance(projection.unalias(), exp.Count)\
-                or isinstance(projection, exp.Avg) or isinstance(projection.unalias(), exp.Avg)\
-                or isinstance(projection, exp.Max) or isinstance(projection.unalias(), exp.Max)\
-                or isinstance(projection, exp.Min) or isinstance(projection.unalias(), exp.Min)\
-                or isinstance(projection, exp.Sum) or isinstance(projection.unalias(), exp.Sum):
+        if projection.find(exp.Star):
             if isinstance(projection, exp.Count):
                 col_name = "count"
-                self._resolve_agg_star(col_name=col_name, projection=projection, used_tables=source_table)
+                self._resolve_agg_star(col_name=col_name, projection=projection, used_tables=source_table, target_dict=target_dict)
             elif isinstance(projection, exp.Avg):
                 col_name = "avg"
-                self._resolve_agg_star(col_name=col_name, projection=projection, used_tables=source_table)
+                self._resolve_agg_star(col_name=col_name, projection=projection, used_tables=source_table, target_dict=target_dict)
             elif isinstance(projection, exp.Max):
                 col_name = "max"
-                self._resolve_agg_star(col_name=col_name, projection=projection, used_tables=source_table)
+                self._resolve_agg_star(col_name=col_name, projection=projection, used_tables=source_table, target_dict=target_dict)
             elif isinstance(projection, exp.Min):
                 col_name = "min"
-                self._resolve_agg_star(col_name=col_name, projection=projection, used_tables=source_table)
+                self._resolve_agg_star(col_name=col_name, projection=projection, used_tables=source_table, target_dict=target_dict)
             elif isinstance(projection, exp.Sum):
                 col_name = "sum"
-                self._resolve_agg_star(col_name=col_name, projection=projection, used_tables=source_table)
+                self._resolve_agg_star(col_name=col_name, projection=projection, used_tables=source_table, target_dict=target_dict)
             else:
-                self._resolve_agg_star(col_name=col_name, projection=projection.unalias(), used_tables=source_table)
+                self._resolve_agg_star(col_name=col_name, projection=projection.unalias(), used_tables=source_table, target_dict=target_dict)
         else:
             proj_columns = []
             # Resolve only *
@@ -192,6 +208,9 @@ class ColumnLineageNoConn:
                     proj_columns.extend(self._find_alias_col(col_sql=p.sql(), temp_table=source_table))
             if proj_columns:
                 target_dict[col_name] = sorted(list(set(proj_columns).union(self.all_used_col)))
+            # If the column only uses literals, like MAX(1)
+            if not projection.find(exp.Column):
+                target_dict[col_name] = sorted(list(self.all_used_col))
         return target_dict
 
     def _resolve_table(self, part_ast: expressions = None) -> List:
@@ -292,7 +311,7 @@ class ColumnLineageNoConn:
                 return [t + "." + temp[1]]
         return [col_sql]
 
-    def _resolve_agg_star(self, col_name: Optional[str] = "", projection: expressions = None, used_tables: Optional[List] = None):
+    def _resolve_agg_star(self, col_name: Optional[str] = "", projection: expressions = None, used_tables: Optional[List] = None, target_dict: Optional[dict] = None):
         """
         Trying to resolve the * and append appropriate columns if the table is able to resolved
         :param col_name: the name of the column
@@ -306,21 +325,31 @@ class ColumnLineageNoConn:
                 # Resolve alias
                 if t_name in self.table_alias_dict.keys():
                     t_name = self.table_alias_dict[t_name]
-                if t_name in self.input_table_dict.keys():
-                    star_cols = []
-                    for s in self.input_table_dict[t_name]:
-                        star_cols.extend(self._find_alias_col(col_sql=s, temp_table=used_tables))
-                elif t_name in self.cte_dict.keys():
-                    star_cols = []
-                    for s in list(self.cte_dict[t_name].keys()):
-                        star_cols.extend(self._find_alias_col(col_sql=s, temp_table=used_tables))
+                if col_name == "*":
+                    if t_name in self.input_table_dict.keys():
+                        for s in self.input_table_dict[t_name]:
+                            self.all_used_col.add(s)
+                            target_dict[s] = sorted(list(set(self._find_alias_col(col_sql=t_name + "." + s, temp_table=used_tables)).union(self.all_used_col)))
+                    elif t_name in self.cte_dict.keys():
+                        for s in list(self.cte_dict[t_name].keys()):
+                            target_dict[s] = sorted(list(set(self._find_alias_col(col_sql=t_name + "." + s, temp_table=used_tables)).union(self.all_used_col)))
+                    else:
+                        target_dict[t_name + ".*"] = sorted(self.all_used_col)
                 else:
-                    star_cols = [t_name + ".*"]
-                self.column_dict[col_name] = sorted(list(set(star_cols).union(self.all_used_col)))
+                    if t_name in self.input_table_dict.keys():
+                        star_cols = []
+                        for s in self.input_table_dict[t_name]:
+                            star_cols.extend(self._find_alias_col(col_sql=s, temp_table=used_tables))
+                    elif t_name in self.cte_dict.keys():
+                        star_cols = []
+                        for s in list(self.cte_dict[t_name].keys()):
+                            star_cols.extend(self._find_alias_col(col_sql=s, temp_table=used_tables))
+                    else:
+                        star_cols = [t_name + ".*"]
+                    target_dict[col_name] = sorted(list(set(star_cols).union(self.all_used_col)))
             # only star, like count(*)
             else:
-                self.column_dict[col_name] = sorted(list(self.all_used_col))
-
+                target_dict[col_name] = sorted(list(self.all_used_col) + [t + ".*" for t in used_tables])
 
 if __name__ == "__main__":
     pass

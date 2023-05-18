@@ -15,13 +15,14 @@ class LineageXWithConn:
     def __init__(
         self,
         path: Optional[Union[List, str]] = None,
-        search_schema: Optional[str] = "public",
+        target_schema: Optional[str] = "public",
         conn_string: Optional[str] = "",
+        search_path_schema: Optional[str] = "public",
     ) -> None:
         self.part_tables = None
         self.df = None
-        self.schema = search_schema.split(",")[0]
-        self.search_schema = search_schema
+        self.schema = target_schema
+        self.search_schema = target_schema + "," + search_path_schema
         self.new_view_list = []
         self.s = Stack()
         self.path = path

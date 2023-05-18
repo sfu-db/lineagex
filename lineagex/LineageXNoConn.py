@@ -6,10 +6,10 @@ from .ColumnLineageNoConn import ColumnLineageNoConn
 
 
 class LineageXNoConn:
-    def __init__(self, path: Optional[str] = "", search_schema: Optional[str] = "public") -> None:
+    def __init__(self, path: Optional[str] = "", search_path_schema: Optional[str] = "public") -> None:
         self.output_dict = {}
-        search_schema = [x.strip() for x in search_schema.split(",")]
-        self.sql_files_dict = SqlToDict(path, search_schema).sql_files_dict
+        search_path_schema = [x.strip() for x in search_path_schema.split(",")]
+        self.sql_files_dict = SqlToDict(path, search_path_schema).sql_files_dict
         self.input_table_dict = {}
         self._run_lineage_no_conn()
 

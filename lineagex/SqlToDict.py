@@ -38,11 +38,13 @@ class SqlToDict:
                     temp_str = org_sql_split[0].upper()
                     if temp_str.find("SELECT ") == -1 and (temp_str.startswith("DROP TABLE IF EXISTS") or temp_str.startswith("DROP VIEW IF EXISTS")):
                         org_sql_split.pop(0)
+                if f.endswith(".sql") or f.endswith(".SQL"):
+                    f = os.path.basename(f)[:-4]
                 if len(org_sql_split) <= 1:
-                    self._preprocess_sql(org_sql=org_sql_split[0], file=os.path.basename(f))
+                    self._preprocess_sql(org_sql=org_sql_split[0], file=f)
                 else:
                     for idx, val in enumerate(org_sql_split):
-                        self._preprocess_sql(org_sql=val, file=os.path.basename(f) + "_" + str(idx))
+                        self._preprocess_sql(org_sql=val, file=f + "_" + str(idx))
 
     def _preprocess_sql(self, org_sql: Optional[str] = "", file: Optional[str] = "") -> None:
         """

@@ -10,19 +10,20 @@ class lineagex:
     def __init__(
             self,
             sql: Optional[Union[List, str]] = None,
-            search_schema: Optional[str] = "public",
+            target_schema: Optional[str] = "public",
             conn_string: Optional[str] = None,
+            search_path_schema: Optional[str] = "public",
     ) -> None:
         if sql is None:
             raise ValueError("the SQL input cannot be empty, please input a list of sql or path to sql")
         elif not isinstance(sql, list) and not isinstance(sql, str):
             raise ValueError("wrong SQL input format, please input a list of sql or path to sql")
         if conn_string:
-            lx = LineageXWithConn(sql, search_schema, conn_string)
+            lx = LineageXWithConn(path=sql, target_schema=target_schema, conn_string=conn_string, search_path_schema=search_path_schema)
             self._save_js_file()
             self.output_dict = lx.output_dict
         else:
-            lx = LineageXNoConn(sql, search_schema)
+            lx = LineageXNoConn(path=sql, search_path_schema=target_schema+","+search_path_schema)
             self._save_js_file()
             self.output_dict = lx.output_dict
 
