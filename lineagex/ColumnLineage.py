@@ -3,7 +3,7 @@ from sqlglot import parse_one, exp
 from sqlglot.expressions import CTE
 from sqlglot import expressions
 from psycopg2.extensions import connection
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Any
 
 from .utils import find_column
 
@@ -13,8 +13,8 @@ class ColumnLineage:
         self,
         plan: Optional[dict] = None,
         sql: Optional[str] = "",
-        table_name: Optional[str] = "",
-        conn: connection = None,
+        columns: Optional[List] = None,
+        conn: Any = None,
         part_tables: Optional[str] = None,
         search_schema: Optional[str] = "",
     ) -> None:
@@ -40,7 +40,7 @@ class ColumnLineage:
         self.column_dict = {}
         self.table_list = []
         self._traverse_plan(plan=plan)
-        self._resolve_column_dict(cols=self._find_final_column())
+        self._resolve_column_dict(cols=columns)
         self.table_list = sorted(set(self.table_list))
         # print(self.final_output)
         # print(self.subplan_dict)
@@ -331,17 +331,28 @@ class ColumnLineage:
         if temp is not None:
             idx_name = plan.get("Index Name")
             if idx_name is not None:
-                cur = self.conn.cursor()
-                cur.execute("""SET search_path TO {};""".format(self.search_schema))
-                cur.execute(
-                    "SELECT schemaname, tablename, indexname, indexdef FROM pg_indexes WHERE indexname = '{}'".format(
-                        idx_name
+                if isinstance(self.conn, connection):
+                    # Postgres
+                    cur = self.conn.cursor()
+                    cur.execute("""SET search_path TO {};""".format(self.search_schema))
+                    cur.execute(
+                        "SELECT schemaname, tablename, indexname, indexdef FROM pg_indexes WHERE indexname = '{}'".format(
+                            idx_name
+                        )
                     )
-                )
-                result = cur.fetchall()[0]
-                cur.close()
-                # the indexdef is at index 3
-                indexdef = result[3]
+                    result = cur.fetchall()[0]
+                    cur.close()
+                    # the indexdef is at index 3
+                    indexdef = result[3]
+                else:
+                    # FalDbt
+                    idx_fal = self.faldbt.execute_sql(
+                        "SELECT schemaname, tablename, indexname, indexdef FROM pg_indexes WHERE indexname = '{}'".format(
+                            idx_name
+                        )
+                    )
+                    result = idx_fal.iloc[0]
+                    indexdef = result["indexdef"]
                 btree_idx = indexdef.find("USING btree")
                 if btree_idx != -1:
                     close_bracket = indexdef.find(")", btree_idx)

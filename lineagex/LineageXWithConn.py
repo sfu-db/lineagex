@@ -5,7 +5,7 @@ from psycopg2 import OperationalError
 from psycopg2.extensions import connection
 from typing import Tuple, List, Optional, Union
 
-from .utils import produce_json
+from .utils import produce_json, find_column
 from .SqlToDict import SqlToDict
 from .stack import *
 from .ColumnLineage import ColumnLineage
@@ -123,25 +123,25 @@ class LineageXWithConn:
                 self._create_view(name=name, sql=sql)
                 self.new_view_list.append(self.schema + "." + name)
                 self.creation_list.pop(self.creation_list.index(name))
-                table_name = self.schema + "." + name
             else:
                 cur = self.conn.cursor()
                 cur.execute("""SET search_path TO {};""".format(self.search_schema))
                 cur.execute(
-                    """SELECT CONCAT (schemaname,'.', tablename) from pg_tables WHERE schemaname = ANY('{{{0}}}') and tablename = '{1}'""".format(
-                        self.search_schema, name
+                    """SELECT CONCAT (schemaname,'.', tablename) from pg_tables WHERE schemaname = '{0}' and tablename = '{1}'""".format(
+                        self.schema, name
                     )
                 )
-                table_name = cur.fetchone()
+                table_result = cur.fetchone()
                 cur.close()
-                if table_name:
-                    table_name = table_name[0]
-                else:
-                    table_name = self.schema + "." + name
+                if not table_result:
+                    self._create_view(name=name, sql=sql)
+                    self.new_view_list.append(self.schema + "." + name)
+            table_name = self.schema + "." + name
+            cols = find_column(table_name=table_name, engine=self.conn, search_schema=self.search_schema)
             col_lineage = ColumnLineage(
                 plan=log_plan,
                 sql=sql,
-                table_name=table_name,
+                columns=cols,
                 conn=self.conn,
                 part_tables=self.part_tables,
                 search_schema=self.search_schema,

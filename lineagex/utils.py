@@ -3,7 +3,7 @@ import os
 import ast
 import json
 from psycopg2.extensions import connection
-from typing import Tuple, List, Optional
+from typing import Tuple, List, Optional, Any
 
 
 def remove_comments(str1: Optional[str] = "") -> str:
@@ -27,7 +27,7 @@ def remove_comments(str1: Optional[str] = "") -> str:
 
 
 def find_column(
-    table_name: Optional[str] = "", engine: connection = None, search_schema: Optional[str] = ""
+    table_name: Optional[str] = "", engine: Any = None, search_schema: Optional[str] = ""
 ) -> List:
     """
     Find the columns for the base table in the database
@@ -36,22 +36,38 @@ def find_column(
     :param table_name: the base table name
     :return: the list of columns in the base table
     """
-    cur = engine.cursor()
-    cur.execute("""SET search_path TO {};""".format(search_schema))
-    cur.execute(
-        """SELECT attname AS col
+    if isinstance(engine, connection):
+        # Postgres
+        cur = engine.cursor()
+        cur.execute("""SET search_path TO {};""".format(search_schema))
+        cur.execute(
+            """SELECT attname AS col
+            FROM   pg_attribute
+            WHERE  attrelid = '{}'::regclass  -- table name optionally schema-qualified
+            AND    attnum > 0
+            AND    NOT attisdropped
+            ORDER  BY attnum;
+             ;""".format(
+                table_name
+            )
+        )
+        result = cur.fetchall()
+        cur.close()
+        return [s[0] for s in result]
+    else:
+        # FalDbt
+        cols_fal = engine.execute_sql(
+            """SELECT attname AS col
         FROM   pg_attribute
         WHERE  attrelid = '{}'::regclass  -- table name optionally schema-qualified
         AND    attnum > 0
         AND    NOT attisdropped
         ORDER  BY attnum;
          ;""".format(
-            table_name
+                table_name
+            )
         )
-    )
-    result = cur.fetchall()
-    cur.close()
-    return [s[0] for s in result]
+        return list(cols_fal["col"])
 
 
 def get_files(path: Optional[str] = "") -> List:
