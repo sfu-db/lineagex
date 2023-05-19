@@ -346,7 +346,7 @@ class ColumnLineage:
                     indexdef = result[3]
                 else:
                     # FalDbt
-                    idx_fal = self.faldbt.execute_sql(
+                    idx_fal = self.conn.execute_sql(
                         "SELECT schemaname, tablename, indexname, indexdef FROM pg_indexes WHERE indexname = '{}'".format(
                             idx_name
                         )
