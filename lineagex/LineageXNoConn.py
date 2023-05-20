@@ -6,10 +6,12 @@ from .ColumnLineageNoConn import ColumnLineageNoConn
 
 
 class LineageXNoConn:
-    def __init__(self, path: Optional[str] = "", search_path_schema: Optional[str] = "public") -> None:
+    def __init__(
+        self, sql: Optional[str] = "", search_path_schema: Optional[str] = "public"
+    ) -> None:
         self.output_dict = {}
         search_path_schema = [x.strip() for x in search_path_schema.split(",")]
-        self.sql_files_dict = SqlToDict(path, search_path_schema).sql_files_dict
+        self.sql_files_dict = SqlToDict(sql, search_path_schema).sql_files_dict
         self.input_table_dict = {}
         self._run_lineage_no_conn()
 
@@ -42,7 +44,7 @@ class LineageXNoConn:
         """
         all_tables = []
         for key, val in self.output_dict.items():
-            all_tables.extend(val['tables'])
+            all_tables.extend(val["tables"])
         all_tables = list(set(all_tables))
         tables_dict = {}
         for t in all_tables:

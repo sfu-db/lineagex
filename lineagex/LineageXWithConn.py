@@ -14,7 +14,7 @@ from .ColumnLineage import ColumnLineage
 class LineageXWithConn:
     def __init__(
         self,
-        path: Optional[Union[List, str]] = None,
+        sql: Optional[Union[List, str]] = None,
         target_schema: Optional[str] = "public",
         conn_string: Optional[str] = "",
         search_path_schema: Optional[str] = "public",
@@ -25,7 +25,7 @@ class LineageXWithConn:
         self.search_schema = target_schema + "," + search_path_schema
         self.new_view_list = []
         self.s = Stack()
-        self.path = path
+        self.sql = sql
         self.sql_files_dict = {}
         self.creation_list = []
         self.finished_list = []
@@ -40,17 +40,85 @@ class LineageXWithConn:
         :return: output an interactive html for the table lineage information
         """
         self.part_tables, self.schema_list = self._get_part_tables()
-        self.sql_files_dict = SqlToDict(self.path, self.schema_list).sql_files_dict
-        for name, sql in self.sql_files_dict.items():
-            try:
-                if name not in self.finished_list:
-                    self._explain_sql(name=name, sql=sql)
-                else:
+        # If the input is a list with no SELECT , assume it to be a list of views/schema
+        if isinstance(self.sql, List) and not any(
+            "SELECT " in s.upper() for s in self.sql
+        ):
+            cur = self.conn.cursor()
+            cur.execute("""SET search_path TO {};""".format(self.search_schema))
+            for t in self.sql:
+                temp = t.split(".")
+                if len(temp) == 2:
+                    cur.execute(
+                        "SELECT concat_ws('.',schemaname,viewname) AS view_name, definition FROM pg_catalog.pg_views WHERE schemaname = '{}' and viewname = '{}';".format(
+                            temp[0], temp[1]
+                        )
+                    )
+                    view_ret = cur.fetchall()
+                    if view_ret:
+                        self.sql_files_dict[view_ret[0][0]] = view_ret[0][1]
+                    else:
+                        print(
+                            "{} is skipped because database returned no result on it".format(
+                                t
+                            )
+                        )
+                elif len(temp) == 1:
+                    cur.execute(
+                        "SELECT concat_ws('.',schemaname,viewname) AS view_name, definition FROM pg_catalog.pg_views WHERE schemaname = '{}';".format(
+                            temp[0]
+                        )
+                    )
+                    schema_ret = cur.fetchall()
+                    if schema_ret:
+                        for s in schema_ret:
+                            self.sql_files_dict[s[0]] = s[1]
+                    else:
+                        print(
+                            "{} is skipped because database returned no result on it".format(
+                                t
+                            )
+                        )
+            cur.close()
+            for name, sql in self.sql_files_dict.items():
+                try:
+                    col_lineage = ColumnLineage(
+                        plan=self._get_plan(sql=sql),
+                        sql=sql,
+                        columns=find_column(
+                            table_name=name,
+                            engine=self.conn,
+                            search_schema=self.search_schema,
+                        ),
+                        conn=self.conn,
+                        part_tables=self.part_tables,
+                        search_schema=self.search_schema,
+                    )
+                    self.output_dict[name] = {
+                        "tables": col_lineage.table_list,
+                        "columns": col_lineage.column_dict,
+                        "table_name": name,
+                    }
+                except Exception as e:
+                    print("{} is not processed because it countered {}".format(name, e))
                     continue
-            except Exception as e:
-                print("{} is not processed because it countered {}".format(name, e))
-                continue
-        produce_json(output_dict=self.output_dict, engine=self.conn, search_schema=self.search_schema)
+        # path or a list of SQL that at least one element contains
+        else:
+            self.sql_files_dict = SqlToDict(self.sql, self.schema_list).sql_files_dict
+            for name, sql in self.sql_files_dict.items():
+                try:
+                    if name not in self.finished_list:
+                        self._explain_sql(name=name, sql=sql)
+                    else:
+                        continue
+                except Exception as e:
+                    print("{} is not processed because it countered {}".format(name, e))
+                    continue
+        produce_json(
+            output_dict=self.output_dict,
+            engine=self.conn,
+            search_schema=self.search_schema,
+        )
         self._delete_view()
         self.conn.close()
 
@@ -95,6 +163,27 @@ class LineageXWithConn:
         cur.close()
         print(self.schema + "." + name + " created")
 
+    def _get_plan(self, sql: Optional[str] = "") -> dict:
+        """
+        Get the plan by providing the sql
+        :param sql: the sql for getting the plan
+        :return: the physical plan of the sql
+        """
+        cur = self.conn.cursor()
+        cur.execute("""SET search_path TO {};""".format(self.search_schema))
+        cur.execute(
+            """EXPLAIN (VERBOSE TRUE, FORMAT JSON, COSTS FALSE) {}""".format(sql)
+        )
+        log_plan = cur.fetchall()
+        cur.close()
+        while True:
+            if isinstance(log_plan, list) or isinstance(log_plan, tuple):
+                log_plan = log_plan[0]
+            elif isinstance(log_plan, dict):
+                log_plan = log_plan["Plan"]
+                break
+        return log_plan
+
     def _explain_sql(self, name: Optional[str] = "", sql: Optional[str] = "") -> None:
         """
         Main function for extracting the table name from the sql. It tries to explain the current file's sql by
@@ -105,20 +194,7 @@ class LineageXWithConn:
         :return: updates file_list, sql_list, table_list, new_view_list
         """
         try:
-            print(name)
-            cur = self.conn.cursor()
-            cur.execute("""SET search_path TO {};""".format(self.search_schema))
-            cur.execute(
-                """EXPLAIN (VERBOSE TRUE, FORMAT JSON, COSTS FALSE) {}""".format(sql)
-            )
-            log_plan = cur.fetchall()
-            cur.close()
-            while True:
-                if isinstance(log_plan, list) or isinstance(log_plan, tuple):
-                    log_plan = log_plan[0]
-                elif isinstance(log_plan, dict):
-                    log_plan = log_plan["Plan"]
-                    break
+            print(name + " processing")
             if name in self.creation_list:
                 self._create_view(name=name, sql=sql)
                 self.new_view_list.append(self.schema + "." + name)
@@ -137,9 +213,13 @@ class LineageXWithConn:
                     self._create_view(name=name, sql=sql)
                     self.new_view_list.append(self.schema + "." + name)
             table_name = self.schema + "." + name
-            cols = find_column(table_name=table_name, engine=self.conn, search_schema=self.search_schema)
+            cols = find_column(
+                table_name=table_name,
+                engine=self.conn,
+                search_schema=self.search_schema,
+            )
             col_lineage = ColumnLineage(
-                plan=log_plan,
+                plan=self._get_plan(sql=sql),
                 sql=sql,
                 columns=cols,
                 conn=self.conn,
@@ -166,9 +246,9 @@ class LineageXWithConn:
                 no_find_idx = error_msg.find("does not exist")
                 relation_idx = error_msg.find("relation")
                 schema_table = error_msg[relation_idx:no_find_idx]
-                table_name = schema_table.split(" ")[-2].split(".")[-1].strip('\"')
+                table_name = schema_table.split(" ")[-2].split(".")[-1].strip('"')
                 self.s.push(name)
-                #print(table_name, self.sql_files_dict)
+                # print(table_name, self.sql_files_dict)
                 if table_name in self.sql_files_dict.keys():
                     if self.schema + "." + table_name in self.new_view_list:
                         print(

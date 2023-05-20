@@ -15,7 +15,7 @@ class ColumnLineage:
         sql: Optional[str] = "",
         columns: Optional[List] = None,
         conn: Any = None,
-        part_tables: Optional[str] = None,
+        part_tables: Optional[dict] = None,
         search_schema: Optional[str] = "",
     ) -> None:
         self.split_regex = re.compile(r"[^a-zA-Z0-9._]")
@@ -50,67 +50,6 @@ class ColumnLineage:
         # print(self.possible_columns)
         # print("columns: ", self.column_dict)
         # print("table: ", self.table_list)
-
-    def _find_final_column(self) -> List[str]:
-        """
-        Find all the column names in the final projection
-        :return: the list of column names in the final projection
-        """
-        # Pop all CTE and Subquery trees
-        for with_sql in self.sql_ast.find_all(exp.With):
-            with_sql.pop()
-        for sub_sql in self.sql_ast.find_all(exp.Subquery):
-            sub_sql.pop()
-        final_column_list = []
-        for projection in self.sql_ast.find(exp.Select).expressions:
-            col_name = projection.alias_or_name
-            # Resolve aggregations with no alias
-            if isinstance(projection, exp.Count):
-                col_name = "count"
-            elif isinstance(projection, exp.Avg):
-                col_name = "avg"
-            elif isinstance(projection, exp.Max):
-                col_name = "max"
-            elif isinstance(projection, exp.Min):
-                col_name = "min"
-            # Resolve * and check if it is from a previous CTE or check database for the table
-            elif (
-                isinstance(projection, exp.Column) and projection.find(exp.Star)
-            ) or col_name == "*":
-                main_table_list = []
-                for table in self.sql_ast.find_all(exp.Table):
-                    table_def_split = re.split(" AS ", table.sql(), flags=re.IGNORECASE)
-                    main_table_list.append(table_def_split[0])
-                # if the * has a prefix
-                if projection.find(exp.Identifier):
-                    t_name = projection.find(exp.Identifier).text("this")
-                    if table_alias_dict[t_name] in self.cte_column.keys():
-                        col_name = self.cte_column[table_alias_dict[t_name]]
-                    else:
-                        col_name = find_column(
-                            table_name=table_alias_dict[t_name],
-                            engine=self.conn,
-                            search_schema=self.search_schema,
-                        )
-                # if * has no prefix
-                else:
-                    for t_name in main_table_list:
-                        if t_name in self.cte_column.keys():
-                            final_column_list.extend(self.cte_column[t_name])
-                        else:
-                            final_column_list.extend(
-                                find_column(
-                                    table_name=t_name,
-                                    engine=self.conn,
-                                    search_schema=self.search_schema,
-                                )
-                            )
-            if isinstance(col_name, list):
-                final_column_list.extend(col_name)
-            else:
-                if col_name != "*":
-                    final_column_list.append(col_name)
-        return final_column_list
 
     def _resolve_column_dict(self, cols: Optional[List] = None) -> None:
         """
@@ -702,53 +641,54 @@ class ColumnLineage:
         cte_name = cte.find(exp.TableAlias).alias_or_name
         cte_col_dict[cte_name] = []
         # Iterate column for each CTE
-        for projection in cte.find(exp.Select).expressions:
-            col_name = projection.alias_or_name
-            # Resolve aggregations with no alias
-            if isinstance(projection, exp.Count):
-                col_name = "count"
-            elif isinstance(projection, exp.Avg):
-                col_name = "avg"
-            elif isinstance(projection, exp.Max):
-                col_name = "max"
-            elif isinstance(projection, exp.Min):
-                col_name = "min"
-            elif isinstance(projection, exp.Sum):
-                col_name = "sum"
-            # Resolve * and check if it is from a previous CTE or check database for the table
-            elif (
-                isinstance(projection, exp.Column) and projection.find(exp.Star)
-            ) or col_name == "*":
-                table_alias_dict, cte_table_list = self._find_table(cte=cte)
-                # if the * has a prefix
-                if projection.find(exp.Identifier):
-                    t_name = projection.find(exp.Identifier).text("this")
-                    if table_alias_dict[t_name] in cte_col_dict.keys():
-                        col_name = cte_col_dict[table_alias_dict[t_name]]
-                    else:
-                        col_name = find_column(
-                            table_name=table_alias_dict[t_name],
-                            engine=self.conn,
-                            search_schema=self.search_schema,
-                        )
-                # if * has no prefix
-                else:
-                    for t_name in cte_table_list:
-                        if t_name in cte_col_dict.keys():
-                            cte_col_dict[cte_name].extend(cte_col_dict[t_name])
+        if cte.find(exp.Select):
+            for projection in cte.find(exp.Select).expressions:
+                col_name = projection.alias_or_name
+                # Resolve aggregations with no alias
+                if isinstance(projection, exp.Count):
+                    col_name = "count"
+                elif isinstance(projection, exp.Avg):
+                    col_name = "avg"
+                elif isinstance(projection, exp.Max):
+                    col_name = "max"
+                elif isinstance(projection, exp.Min):
+                    col_name = "min"
+                elif isinstance(projection, exp.Sum):
+                    col_name = "sum"
+                # Resolve * and check if it is from a previous CTE or check database for the table
+                elif (
+                    isinstance(projection, exp.Column) and projection.find(exp.Star)
+                ) or col_name == "*":
+                    table_alias_dict, cte_table_list = self._find_table(cte=cte)
+                    # if the * has a prefix
+                    if projection.find(exp.Identifier):
+                        t_name = projection.find(exp.Identifier).text("this")
+                        if table_alias_dict[t_name] in cte_col_dict.keys():
+                            col_name = cte_col_dict[table_alias_dict[t_name]]
                         else:
-                            cte_col_dict[cte_name].extend(
-                                find_column(
-                                    table_name=t_name,
-                                    engine=self.conn,
-                                    search_schema=self.search_schema,
-                                )
+                            col_name = find_column(
+                                table_name=table_alias_dict[t_name],
+                                engine=self.conn,
+                                search_schema=self.search_schema,
                             )
-            if isinstance(col_name, list):
-                cte_col_dict[cte_name].extend(col_name)
-            else:
-                if col_name != "*":
-                    cte_col_dict[cte_name].append(col_name)
+                    # if * has no prefix
+                    else:
+                        for t_name in cte_table_list:
+                            if t_name in cte_col_dict.keys():
+                                cte_col_dict[cte_name].extend(cte_col_dict[t_name])
+                            else:
+                                cte_col_dict[cte_name].extend(
+                                    find_column(
+                                        table_name=t_name,
+                                        engine=self.conn,
+                                        search_schema=self.search_schema,
+                                    )
+                                )
+                if isinstance(col_name, list):
+                    cte_col_dict[cte_name].extend(col_name)
+                else:
+                    if col_name != "*":
+                        cte_col_dict[cte_name].append(col_name)
         return cte_col_dict
 
 
