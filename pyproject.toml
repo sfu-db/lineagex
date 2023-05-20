@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "lineagex"
-version = "0.0.3"
+version = "0.0.4"
 description = "A column lineage tool"
 authors = ["zshandy <zshandy@gmail.com>"]
 license = "MIT"
@@ -9,7 +9,7 @@ readme = "README.md" # Markdown files are supported
 [tool.poetry.dependencies]
 python = "^3.6"
 sqlglot = "^12.3.0"
-psycopg2 = "^2.9.6"
+psycopg2-binary = "^2.9.6"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
