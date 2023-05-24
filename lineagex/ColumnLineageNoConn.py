@@ -129,12 +129,24 @@ class ColumnLineageNoConn:
                 for sub_ast in cond_sql.find_all(exp.Select):
                     temp_sub_table = self._resolve_table(part_ast=sub_ast)
                     temp_sub_cols = []
+                    temp_dict = {}
                     for col in sub_ast.find_all(exp.Column):
-                        temp_sub_cols.extend(
-                            self._find_alias_col(
-                                col_sql=col.sql(), temp_table=temp_sub_table
+                        if col.find(exp.Star):
+                            temp_dict = self._resolve_agg_star(
+                                col_name="*",
+                                projection=col,
+                                used_tables=temp_sub_table,
+                                target_dict=temp_dict,
                             )
-                        )
+                            for _, value in temp_dict.items():
+                                temp_sub_cols.extend(value)
+                        else:
+                            temp_sub_cols.extend(
+                                self._find_alias_col(
+                                    col_sql=col.sql(), temp_table=temp_sub_table
+                                )
+                            )
+                    temp_sub_cols = list(set(temp_sub_cols))
                     all_cte_sub_table.extend(
                         self._find_all_tables(temp_table_list=temp_sub_table)
                     )
@@ -203,7 +215,7 @@ class ColumnLineageNoConn:
         if projection.find(exp.Star):
             if isinstance(projection, exp.Count):
                 col_name = "count"
-                self._resolve_agg_star(
+                target_dict = self._resolve_agg_star(
                     col_name=col_name,
                     projection=projection,
                     used_tables=source_table,
@@ -211,7 +223,7 @@ class ColumnLineageNoConn:
                 )
             elif isinstance(projection, exp.Avg):
                 col_name = "avg"
-                self._resolve_agg_star(
+                target_dict = self._resolve_agg_star(
                     col_name=col_name,
                     projection=projection,
                     used_tables=source_table,
@@ -219,7 +231,7 @@ class ColumnLineageNoConn:
                 )
             elif isinstance(projection, exp.Max):
                 col_name = "max"
-                self._resolve_agg_star(
+                target_dict = self._resolve_agg_star(
                     col_name=col_name,
                     projection=projection,
                     used_tables=source_table,
@@ -227,7 +239,7 @@ class ColumnLineageNoConn:
                 )
             elif isinstance(projection, exp.Min):
                 col_name = "min"
-                self._resolve_agg_star(
+                target_dict = self._resolve_agg_star(
                     col_name=col_name,
                     projection=projection,
                     used_tables=source_table,
@@ -235,14 +247,14 @@ class ColumnLineageNoConn:
                 )
             elif isinstance(projection, exp.Sum):
                 col_name = "sum"
-                self._resolve_agg_star(
+                target_dict = self._resolve_agg_star(
                     col_name=col_name,
                     projection=projection,
                     used_tables=source_table,
                     target_dict=target_dict,
                 )
             else:
-                self._resolve_agg_star(
+                target_dict = self._resolve_agg_star(
                     col_name=col_name,
                     projection=projection.unalias(),
                     used_tables=source_table,
@@ -435,7 +447,13 @@ class ColumnLineageNoConn:
             else:
                 t = temp[0]
             if t in self.cte_dict.keys():
-                return self.cte_dict[t][temp[1]]
+                # CTE is stored, but the column name is not, resolve case sensitivity
+                if temp[1] not in self.cte_dict[t].keys():
+                    temp_cte_dict = {k.lower(): v for k, v in self.cte_dict[t].items()}
+                    if temp[1].lower() in temp_cte_dict.keys():
+                        return temp_cte_dict[temp[1].lower()]
+                else:
+                    return self.cte_dict[t][temp[1]]
             else:
                 return [t + "." + temp[1]]
         return [col_sql]
@@ -446,12 +464,13 @@ class ColumnLineageNoConn:
         projection: expressions = None,
         used_tables: Optional[List] = None,
         target_dict: Optional[dict] = None,
-    ):
+    ) -> dict:
         """
         Trying to resolve the * and append appropriate columns if the table is able to resolved
         :param col_name: the name of the column
         :param projection: the expression of the sql
         :param used_tables: the tables that are used
+        :param target_dict: the dict it is writing to
         """
         if projection.find(exp.Star):
             # * with a table name
@@ -511,6 +530,7 @@ class ColumnLineageNoConn:
                 target_dict[col_name] = sorted(
                     list(self.all_used_col) + [t + ".*" for t in used_tables]
                 )
+        return target_dict
 
 
 if __name__ == "__main__":

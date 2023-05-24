@@ -82,6 +82,7 @@ class LineageXWithConn:
             cur.close()
             for name, sql in self.sql_files_dict.items():
                 try:
+                    print(name, " processing")
                     col_lineage = ColumnLineage(
                         plan=self._get_plan(sql=sql),
                         sql=sql,

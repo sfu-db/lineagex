@@ -33,7 +33,7 @@ class lineagex:
             self.output_dict = lx.output_dict
         else:
             lx = LineageXNoConn(
-                sql=sql, search_path_schema=target_schema + "," + search_path_schema
+                sql=sql, target_schema=target_schema, search_path_schema= search_path_schema
             )
             self._save_js_file()
             self.output_dict = lx.output_dict
