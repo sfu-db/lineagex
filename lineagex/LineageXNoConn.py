@@ -12,8 +12,9 @@ class LineageXNoConn:
         self, sql: Optional[str] = "", target_schema: Optional[str] = "public",  search_path_schema: Optional[str] = "public"
     ) -> None:
         self.output_dict = {}
-        search_path_schema = [x.strip() for x in search_path_schema.split(",")]
         self.target_schema = target_schema
+        search_path_schema = [x.strip() for x in search_path_schema.split(",")]
+        search_path_schema.append(target_schema)
         self.sql_files_dict = SqlToDict(sql, search_path_schema).sql_files_dict
         self.input_table_dict = {}
         self.finished_list = []
