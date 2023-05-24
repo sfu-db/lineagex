@@ -1,3 +1,4 @@
+from .lineagex import lineagex
 import os
 
 
@@ -6,13 +7,7 @@ class example:
         def get_current_path():
             # Returns the path of the current script
             return os.path.dirname(os.path.realpath(__file__))
-
-        print("Current path is: ", get_current_path())
-        import lineagex
-        print(os.path.abspath(lineagex.__file__))
-
-        cwd = os.getcwd()
-        from .lineagex import lineagex
+        cwd = get_current_path()
         if case == "github_example":
             t_noconn = lineagex(sql=os.path.join(cwd, 'examples', 'github_example'), target_schema="schema1", search_path_schema="schema1, public")
             print("{} finished, please check in the folder for output.json and index.html".format(case))
