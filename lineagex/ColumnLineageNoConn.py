@@ -482,7 +482,6 @@ class ColumnLineageNoConn:
                 if col_name == "*":
                     if t_name in self.input_table_dict.keys():
                         for s in self.input_table_dict[t_name]:
-                            self.all_used_col.add(s)
                             target_dict[s] = sorted(
                                 list(
                                     set(
@@ -525,11 +524,52 @@ class ColumnLineageNoConn:
                     target_dict[col_name] = sorted(
                         list(set(star_cols).union(self.all_used_col))
                     )
-            # only star, like count(*)
+            # only star
             else:
-                target_dict[col_name] = sorted(
-                    list(self.all_used_col) + [t + ".*" for t in used_tables]
-                )
+                # only star, so to get all the columns from the used tables
+                if (
+                    isinstance(projection.parent, exp.Select)
+                    and projection.parent.depth + 1 == projection.depth
+                    and not isinstance(projection, exp.Count)
+                    and not isinstance(projection, exp.Min)
+                    and not isinstance(projection, exp.Max)
+                    and not isinstance(projection, exp.Sum)
+                    and not isinstance(projection, exp.Avg)
+                ):
+                    for t_name in used_tables:
+                        if t_name in self.table_alias_dict.keys():
+                            t_name = self.table_alias_dict[t_name]
+                        if t_name in self.input_table_dict.keys():
+                            for s in self.input_table_dict[t_name]:
+                                target_dict[s] = sorted(
+                                    list(
+                                        set(
+                                            self._find_alias_col(
+                                                col_sql=t_name + "." + s,
+                                                temp_table=used_tables,
+                                            )
+                                        ).union(self.all_used_col)
+                                    )
+                                )
+                        elif t_name in self.cte_dict.keys():
+                            for s in list(self.cte_dict[t_name].keys()):
+                                target_dict[s] = sorted(
+                                    list(
+                                        set(
+                                            self._find_alias_col(
+                                                col_sql=t_name + "." + s,
+                                                temp_table=used_tables,
+                                            )
+                                        ).union(self.all_used_col)
+                                    )
+                                )
+                        else:
+                            target_dict[t_name + ".*"] = sorted(self.all_used_col)
+                else:
+                    # only star but it is an aggregation
+                    target_dict[col_name] = sorted(
+                        list(self.all_used_col) + [t + ".*" for t in used_tables]
+                    )
         return target_dict
 
 

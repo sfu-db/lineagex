@@ -9,7 +9,10 @@ from .ColumnLineageNoConn import ColumnLineageNoConn
 
 class LineageXNoConn:
     def __init__(
-        self, sql: Optional[str] = "", target_schema: Optional[str] = "public",  search_path_schema: Optional[str] = "public"
+        self,
+        sql: Optional[str] = "",
+        target_schema: Optional[str] = "public",
+        search_path_schema: Optional[str] = "public",
     ) -> None:
         self.output_dict = {}
         self.target_schema = target_schema
@@ -52,7 +55,9 @@ class LineageXNoConn:
             "table_name": name,
         }
         # add to the dict with the already parsed tables
-        self.input_table_dict[self.target_schema + "." + name] = list(col_lineage.column_dict.keys())
+        self.input_table_dict[self.target_schema + "." + name] = list(
+            col_lineage.column_dict.keys()
+        )
         self.input_table_dict[name] = list(col_lineage.column_dict.keys())
 
     def _resolve_table(self, part_ast: expressions = None) -> List:
