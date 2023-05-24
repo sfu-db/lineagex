@@ -5,6 +5,7 @@ import os
 class example:
     def __init__(self, case: str = ""):
         cwd = os.getcwd()
+        print(cwd)
         if case == "github_example":
             t_noconn = lineagex(sql=os.path.join(cwd, 'examples', 'github_example'), target_schema="schema1", search_path_schema="schema1, public")
             print("{} finished, please check in the folder for output.json and index.html".format(case))
