@@ -13,6 +13,7 @@ shared_conditions_with_table = [
     exp.From,
     exp.Join,
 ]
+from_join_exp = [exp.From, exp.Join]
 
 
 class ColumnLineageNoConn:
@@ -23,6 +24,7 @@ class ColumnLineageNoConn:
         self.table_alias_dict = {}
         self.cte_table_dict = {}
         self.cte_dict = {}
+        self.unnest_dict = {}
         self.input_table_dict = input_table_dict
         self.sql_ast = parse_one(sql, read="postgres")
         self.all_used_col = []
@@ -38,7 +40,7 @@ class ColumnLineageNoConn:
         self._run_lineage(self.sql_ast, False)
         # print(self.cte_dict)
         # print(self.column_dict)
-        # print(self.table_list)
+        # print(self.cte_table_dict)
 
     def _run_lineage(
         self, sql_ast: expressions = None, subquery_flag: bool = False
@@ -104,7 +106,7 @@ class ColumnLineageNoConn:
         :param sql_ast: the ast without the cte
         """
         # add in more conditions, including FROM/JOIN
-        for cond in shared_conditions_with_table:
+        for cond in shared_conditions + from_join_exp:
             for cond_sql in sql_ast.find_all(cond):
                 for sub_ast in cond_sql.find_all(exp.Subquery):
                     self.sub_tables = self._resolve_table(part_ast=sub_ast)
@@ -124,9 +126,9 @@ class ColumnLineageNoConn:
         all_cte_sub_table = []
         all_cte_sub_cols = []
         # add in more conditions, including FROM/JOIN
-        for cond in shared_conditions_with_table:
+        for cond in shared_conditions + from_join_exp:
             for cond_sql in sql_ast.find_all(cond):
-                for sub_ast in cond_sql.find_all(exp.Select):
+                for sub_ast in cond_sql.find_all(exp.Subquery):
                     temp_sub_table = self._resolve_table(part_ast=sub_ast)
                     temp_sub_cols = []
                     temp_dict = {}
@@ -212,7 +214,7 @@ class ColumnLineageNoConn:
         :param source_table: all the source tables that this column might originate from
         """
         # Resolve count(*) with no alias, potentially other aggregations, MIN, MAX, SUM
-        if projection.find(exp.Star):
+        if projection.find(exp.Star) and not isinstance(projection.unalias(), exp.Array) and not isinstance(projection, exp.Array):
             if isinstance(projection, exp.Count):
                 col_name = "count"
                 target_dict = self._resolve_agg_star(
@@ -259,6 +261,19 @@ class ColumnLineageNoConn:
                     projection=projection.unalias(),
                     used_tables=source_table,
                     target_dict=target_dict,
+                )
+        elif isinstance(projection.unalias(), exp.Array) or isinstance(projection, exp.Array):
+            temp_col = []
+            proj_columns = []
+            for p in projection.find_all(exp.Column):
+                temp_col.append(p.sql())
+            for p in temp_col:
+                proj_columns.extend(self._find_alias_col(
+                                col_sql=p,
+                                temp_table=source_table,
+                            ))
+            target_dict[col_name] = sorted(
+                list(set(proj_columns).union(self.all_used_col))
                 )
         else:
             proj_columns = []
@@ -346,18 +361,42 @@ class ColumnLineageNoConn:
         :param part_ast: the ast to find the table
         """
         temp_table_list = []
-        # Resolve FROM
-        for table_sql in part_ast.find_all(exp.From):
-            for table in table_sql.find_all(exp.Table):
-                temp_table_list = self._find_table(
-                    table=table, temp_table_list=temp_table_list
-                )
-        # Resolve JOIN
-        for table_sql in part_ast.find_all(exp.Join):
-            for table in table_sql.find_all(exp.Table):
-                temp_table_list = self._find_table(
-                    table=table, temp_table_list=temp_table_list
-                )
+        for cond in from_join_exp:
+            # Resolve FROM and JOIN
+            for table_sql in part_ast.find_all(cond):
+                # Skip GenerateSeries as a Table
+                if table_sql.find(exp.GenerateSeries):
+                    if table_sql.find(exp.GenerateSeries).depth <= table_sql.depth + 2:
+                        continue
+                # Resolve Unnest for creating tables
+                elif table_sql.find(exp.Unnest):
+                    temp_col_name = []
+                    for t in table_sql.find_all(exp.Identifier):
+                        temp_col_name.append(t.text("this"))
+                        dep_tables = []
+                        if len(temp_col_name) == 2:
+                            dep_cols = self._find_alias_col(
+                                col_sql=temp_col_name[1] + "." + temp_col_name[0],
+                                temp_table=[temp_col_name[1]],
+                            )
+                            self.all_used_col.extend(dep_cols)
+                            for x in dep_cols:
+                                if len(x.split(".")) == 3:
+                                    idx = x.rfind(".")
+                                    dep_tables.append(x[:idx])
+                                elif len(x.split(".")) == 2:
+                                    dep_tables.append(x)
+                            dep_tables = list(set(dep_tables))
+                            self.table_alias_dict[temp_col_name[0]] = dep_tables
+                            self.unnest_dict[temp_col_name[0]] = dep_cols
+                            if table_sql.find(exp.TableAlias):
+                                self.table_alias_dict[table_sql.find(exp.TableAlias).text("this")] = dep_tables
+                                self.unnest_dict[table_sql.find(exp.TableAlias).text("this")] = dep_cols
+                        temp_table_list.extend(dep_tables)
+                for table in table_sql.find_all(exp.Table):
+                    temp_table_list = self._find_table(
+                        table=table, temp_table_list=temp_table_list
+                    )
         return temp_table_list
 
     def _find_table(
@@ -426,6 +465,8 @@ class ColumnLineageNoConn:
         temp = col_sql.split(".")
         # trying to deduce the table if all possible tables are eliminated
         elim_table = []
+        if col_sql in self.unnest_dict.keys():
+            return self.unnest_dict[col_sql]
         if len(temp) < 2:
             for t in temp_table:
                 if t in self.input_table_dict.keys():
