@@ -10,9 +10,9 @@ class lineagex:
     def __init__(
         self,
         sql: Optional[Union[List, str]] = None,
-        target_schema: Optional[str] = "public",
+        target_schema: Optional[str] = "",
         conn_string: Optional[str] = None,
-        search_path_schema: Optional[str] = "public",
+        search_path_schema: Optional[str] = "",
     ) -> None:
         if sql is None:
             raise ValueError(
@@ -22,6 +22,13 @@ class lineagex:
             raise ValueError(
                 "wrong SQL input format, please input a list of sql or path to sql"
             )
+        if target_schema == "" and search_path_schema == "":
+            target_schema = "public"
+            search_path_schema = "public"
+        elif target_schema == "" and not search_path_schema == "":
+            target_schema = search_path_schema.split(",")[0]
+        elif not target_schema == "" and search_path_schema == "":
+            search_path_schema = target_schema
         if conn_string:
             lx = LineageXWithConn(
                 sql=sql,
