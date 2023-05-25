@@ -1,0 +1,37 @@
+name: docs
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Intall Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
+
+      - name: Install dependencies
+        run: |
+          pip install -r docs/requirements.txt
+          sudo apt-get update
+          sudo apt-get install -y libkrb5-dev libclang-dev
+
+      - name: Build the book
+        run: |
+          jupyter-book build docs
+
+      - name: Add .nojekyll
+        run: touch ./docs/_build/html/.nojekyll
+
+      - name: Deploy Docs 🚀
+        uses: JamesIves/github-pages-deploy-action@4.0.0
+        with:
+          branch: gh-pages # The branch the action should deploy to.
+          folder: ./docs/_build/html # The folder the action should deploy.
+          clean-exclude: dev
