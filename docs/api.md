@@ -13,7 +13,7 @@ lineagex.lineagex(sql: Union[List, str], target_schema: Optional[str] = "", conn
 - `search_path_schema: Optional[str] = ""`: The `SET search_path TO ...` schemas, defaults to `public` or the `target_schema` if provided
 
 The conn_string to the database is optional, but it is highly recommended to provide the connection for the best result.
-Here is a [live demo](https://zshandy.github.io/lineagex-demo/) with the [mimic-iv concepts_postgres](https://github.com/MIT-LCP/mimic-code/tree/main/mimic-iv/concepts_postgres) files([navigation instructions](to be linked))
+Here is a [live demo](https://zshandy.github.io/lineagex-demo/) with the [mimic-iv concepts_postgres](https://github.com/MIT-LCP/mimic-code/tree/main/mimic-iv/concepts_postgres) files([navigation instructions](https://sfu-db.github.io/lineagex/output.html))
 
 ## Examples
 - This is a generic example, but there are also included examples in the package
