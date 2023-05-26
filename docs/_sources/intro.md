@@ -7,20 +7,20 @@ Don't worry, this tool is intended to help you by creating an interactive graph 
 column level lineage among them(Currently only supports Postgres, other connection types or dialects are under development).
 
 ## How to run
-Here is a [live demo](https://zshandy.github.io/lineagex-demo/) with the [mimic-iv concepts_postgres](https://github.com/MIT-LCP/mimic-code/tree/main/mimic-iv/concepts_postgres) files([navigation instructions](to be linked)) and that is created with one line of code:
+Here is a [live demo](https://zshandy.github.io/lineagex-demo/) with the [mimic-iv concepts_postgres](https://github.com/MIT-LCP/mimic-code/tree/main/mimic-iv/concepts_postgres) files([navigation instructions](https://sfu-db.github.io/lineagex/output.html)) and that is created with one line of code:
 
 ```python
 from lineagex.lineagex import lineagex
   
 lineagex(sql=path/to/sql, target_schema="schema1", conn_string="postgresql://username:password@server:port/database", search_path_schema="schema1, public")
 ```
-Check out more detailed usage and examples [here](to be linked). 
+Check out more detailed usage and examples [here](https://sfu-db.github.io/lineagex/api.html). 
 
 ## What does it output
 The input can be a path to a SQL file, a path to a folder containing SQL files, a list of SQLs or a list of view names and/or schemas. Optionally, you can provide less information with only the SQLs, but providing the schema information and database connection is highly recommended for the best result.
 The output would be a output.json and a index.html file in the folder. Start a local http server and you would be able to see the interactive graph.
 <img src="https://raw.githubusercontent.com/sfu-db/lineagex/main/tests/example.gif"/>
-Check out more detailed navigation instructions [here](to be linked).
+Check out more detailed navigation instructions [here](https://sfu-db.github.io/lineagex/output.html).
 
 ## Why use LineageX
 A general introduction of the project can be found in this [blog post](https://medium.com/@shz1/lineagex-the-python-library-for-your-lineage-needs-5e51b77a0032).

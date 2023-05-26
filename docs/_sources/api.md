@@ -43,4 +43,4 @@ Here is a [live demo](https://zshandy.github.io/lineagex-demo/) with the [mimic-
   example("mimic-iv")
   ```
 
-For output and navigation details, please view [here](to be linked)
+For output and navigation details, please view [here](https://sfu-db.github.io/lineagex/output.html)
