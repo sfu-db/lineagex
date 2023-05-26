@@ -375,7 +375,7 @@ Don’t worry, this tool is intended to help you by creating an interactive grap
 column level lineage among them(Currently only supports Postgres, other connection types or dialects are under development).</p>
 <section id="how-to-run">
 <h2>How to run<a class="headerlink" href="#how-to-run" title="Permalink to this heading">#</a></h2>
-<p>Here is a <a class="reference external" href="https://zshandy.github.io/lineagex-demo/">live demo</a> with the <a class="reference external" href="https://github.com/MIT-LCP/mimic-code/tree/main/mimic-iv/concepts_postgres">mimic-iv concepts_postgres</a> files(<a class="reference external" href="https://sfu-db.github.io/lineagex/output.html">navigation instructions</a>) and that is created with one line of code:</p>
+<p>Here is a <a class="reference external" href="https://zshandy.github.io/lineagex-demo/">live demo</a> with the <a class="reference external" href="https://github.com/MIT-LCP/mimic-code/tree/main/mimic-iv/concepts_postgres">mimic-iv concepts_postgres</a> files(<a class="reference external" href="https://sfu-db.github.io/lineagex/output.html#how-to-navigate-the-webpage">navigation instructions</a>) and that is created with one line of code:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">lineagex.lineagex</span> <span class="kn">import</span> <span class="n">lineagex</span>
   
 <span class="n">lineagex</span><span class="p">(</span><span class="n">sql</span><span class="o">=</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">sql</span><span class="p">,</span> <span class="n">target_schema</span><span class="o">=</span><span class="s2">&quot;schema1&quot;</span><span class="p">,</span> <span class="n">conn_string</span><span class="o">=</span><span class="s2">&quot;postgresql://username:password@server:port/database&quot;</span><span class="p">,</span> <span class="n">search_path_schema</span><span class="o">=</span><span class="s2">&quot;schema1, public&quot;</span><span class="p">)</span>
@@ -388,7 +388,7 @@ column level lineage among them(Currently only supports Postgres, other connecti
 <p>The input can be a path to a SQL file, a path to a folder containing SQL files, a list of SQLs or a list of view names and/or schemas. Optionally, you can provide less information with only the SQLs, but providing the schema information and database connection is highly recommended for the best result.
 The output would be a output.json and a index.html file in the folder. Start a local http server and you would be able to see the interactive graph.
 <img src="https://raw.githubusercontent.com/sfu-db/lineagex/main/tests/example.gif"/>
-Check out more detailed navigation instructions <a class="reference external" href="https://sfu-db.github.io/lineagex/output.html">here</a>.</p>
+Check out more detailed navigation instructions <a class="reference external" href="https://sfu-db.github.io/lineagex/output.html#how-to-navigate-the-webpage">here</a>.</p>
 </section>
 <section id="why-use-lineagex">
 <h2>Why use LineageX<a class="headerlink" href="#why-use-lineagex" title="Permalink to this heading">#</a></h2>
