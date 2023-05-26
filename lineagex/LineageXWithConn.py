@@ -200,6 +200,15 @@ class LineageXWithConn:
                 self._create_view(name=name, sql=sql)
                 self.new_view_list.append(self.schema + "." + name)
                 self.creation_list.pop(self.creation_list.index(name))
+                table_name = self.schema + "." + name
+            elif name.isnumeric():
+                table_name = "lineagex_temp_{}".format(name)
+                self._create_view(name=table_name, sql=sql)
+                self.new_view_list.append(self.schema + "." + table_name)
+            elif name.find("_DELETION_") or name.find("_INSERTION_"):
+                table_name = name.replace(".", "_")
+                self._create_view(name=table_name, sql=sql)
+                self.new_view_list.append(self.schema + "." + table_name)
             else:
                 cur = self.conn.cursor()
                 cur.execute("""SET search_path TO {};""".format(self.search_schema))
@@ -213,7 +222,7 @@ class LineageXWithConn:
                 if not table_result:
                     self._create_view(name=name, sql=sql)
                     self.new_view_list.append(self.schema + "." + name)
-            table_name = self.schema + "." + name
+                table_name = self.schema + "." + name
             cols = find_column(
                 table_name=table_name,
                 engine=self.conn,
@@ -227,6 +236,8 @@ class LineageXWithConn:
                 part_tables=self.part_tables,
                 search_schema=self.search_schema,
             )
+            if name.isnumeric() or name.find("_DELETION_") or name.find("_INSERTION_"):
+                table_name = name
             self.output_dict[table_name] = {
                 "tables": col_lineage.table_list,
                 "columns": col_lineage.column_dict,
