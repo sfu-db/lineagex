@@ -353,10 +353,18 @@ document.write(`
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#">Introduction</a><ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#how-to-run">How to run</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-does-it-output">What does it output</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#why-use-lineagex">Why use LineageX</a></li>
 </ul>
+</li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#supported-database-connection-types">Supported Database Connection Types</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#database-connection-types">Database Connection Types</a></li>
+</ul>
+</li>
+</ul>
+
             </nav>
         </div>
     </div>
@@ -369,7 +377,7 @@ document.write(`
                   
   <section class="tex2jax_ignore mathjax_ignore" id="introduction">
 <h1>Introduction<a class="headerlink" href="#introduction" title="Permalink to this heading">#</a></h1>
-<p>A Column Level Lineage Graph for Postgres</p>
+<p>A Column Level Lineage Graph for SQL.</p>
 <p>Have you ever wondered what is the column level relationship among your SQL scripts and base tables?
 Don’t worry, this tool is intended to help you by creating an interactive graph on a webpage to explore the
 column level lineage among them(Currently only supports Postgres, other connection types or dialects are under development).</p>
@@ -377,7 +385,7 @@ column level lineage among them(Currently only supports Postgres, other connecti
 <h2>How to run<a class="headerlink" href="#how-to-run" title="Permalink to this heading">#</a></h2>
 <p>Here is a <a class="reference external" href="https://zshandy.github.io/lineagex-demo/">live demo</a> with the <a class="reference external" href="https://github.com/MIT-LCP/mimic-code/tree/main/mimic-iv/concepts_postgres">mimic-iv concepts_postgres</a> files(<a class="reference external" href="https://sfu-db.github.io/lineagex/output.html#how-to-navigate-the-webpage">navigation instructions</a>) and that is created with one line of code:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">lineagex.lineagex</span> <span class="kn">import</span> <span class="n">lineagex</span>
-  
+
 <span class="n">lineagex</span><span class="p">(</span><span class="n">sql</span><span class="o">=</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">sql</span><span class="p">,</span> <span class="n">target_schema</span><span class="o">=</span><span class="s2">&quot;schema1&quot;</span><span class="p">,</span> <span class="n">conn_string</span><span class="o">=</span><span class="s2">&quot;postgresql://username:password@server:port/database&quot;</span><span class="p">,</span> <span class="n">search_path_schema</span><span class="o">=</span><span class="s2">&quot;schema1, public&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -387,7 +395,7 @@ column level lineage among them(Currently only supports Postgres, other connecti
 <h2>What does it output<a class="headerlink" href="#what-does-it-output" title="Permalink to this heading">#</a></h2>
 <p>The input can be a path to a SQL file, a path to a folder containing SQL files, a list of SQLs or a list of view names and/or schemas. Optionally, you can provide less information with only the SQLs, but providing the schema information and database connection is highly recommended for the best result.
 The output would be a output.json and a index.html file in the folder. Start a local http server and you would be able to see the interactive graph.
-<img src="https://raw.githubusercontent.com/sfu-db/lineagex/main/tests/example.gif"/>
+<img src="https://raw.githubusercontent.com/sfu-db/lineagex/main/docs/example.gif"/>
 Check out more detailed navigation instructions <a class="reference external" href="https://sfu-db.github.io/lineagex/output.html#how-to-navigate-the-webpage">here</a>.</p>
 </section>
 <section id="why-use-lineagex">
@@ -398,6 +406,22 @@ Check out more detailed navigation instructions <a class="reference external" hr
 <li><p>Clean and simple but very interactive user interface: The user interface is very simple to use with minimal clutters on the page while showing all of the necessary information.</p></li>
 <li><p>Variety of SQL statements: LineageX supports a variety of SQL statements, aside from the typical <code class="docutils literal notranslate"><span class="pre">SELECT</span></code> statement, it also supports <code class="docutils literal notranslate"><span class="pre">CREATE</span> <span class="pre">TABLE/VIEW</span> <span class="pre">[IF</span> <span class="pre">NOT</span> <span class="pre">EXISTS]</span></code> statement as well as the <code class="docutils literal notranslate"><span class="pre">INSERT</span></code> and <code class="docutils literal notranslate"><span class="pre">DELETE</span></code> statement.</p></li>
 <li><p><a class="reference external" href="https://docs.getdbt.com/">dbt</a> support: LineageX also implemented in the <a class="reference external" href="https://github.com/sfu-db/dbt-lineagex">dbt-LineageX</a>, it is added into a dbt project and by using the dbt library <a class="reference external" href="https://github.com/fal-ai/fal">fal</a>, it is able to reuse the Python core and create the similar output from the dbt project.</p></li>
+</ul>
+</section>
+</section>
+<section class="tex2jax_ignore mathjax_ignore" id="supported-database-connection-types">
+<h1>Supported Database Connection Types<a class="headerlink" href="#supported-database-connection-types" title="Permalink to this heading">#</a></h1>
+<p>When entering the <code class="docutils literal notranslate"><span class="pre">conn_string</span></code> parameter, only supported databases’ connection types can be parsed successfully, or the lineage graph would be created as if no <code class="docutils literal notranslate"><span class="pre">conn_string</span></code> parameter is given.</p>
+<section id="database-connection-types">
+<h2>Database Connection Types<a class="headerlink" href="#database-connection-types" title="Permalink to this heading">#</a></h2>
+<ul class="contains-task-list simple">
+<li class="task-list-item"><p><input class="task-list-item-checkbox" checked="checked" disabled="disabled" type="checkbox"> Postgres</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" checked="checked" disabled="disabled" type="checkbox"> dbt-Postgres</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Mysql</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Sqlite</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> SQL Server</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Oracle</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> …</p></li>
 </ul>
 </section>
 <div class="toctree-wrapper compound">
@@ -462,10 +486,18 @@ Check out more detailed navigation instructions <a class="reference external" hr
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#">Introduction</a><ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#how-to-run">How to run</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-does-it-output">What does it output</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#why-use-lineagex">Why use LineageX</a></li>
 </ul>
+</li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#supported-database-connection-types">Supported Database Connection Types</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#database-connection-types">Database Connection Types</a></li>
+</ul>
+</li>
+</ul>
+
   </nav></div>
 
 </div></div>

@@ -37,7 +37,7 @@ It would output the output.json and index.html. The output.json contains the lin
 
 ## How to Navigate the Webpage
 As for the index.html, you can start a php server in the folder and view it in your browser, usually `php -S localhost:8000` and view at `localhost:8000`
-<img src="https://raw.githubusercontent.com/sfu-db/lineagex/main/tests/example.gif"/>
+<img src="https://raw.githubusercontent.com/sfu-db/lineagex/main/docs/example.gif"/>
 - Start by clicking the star on the right(select) and input a SQL name that you want to start with.
 - It should show a table on the canvas with table names and its columns, by clicking the "explore" button on the top right, it will show all the downstream and upstream tables that are related to the columns.
 - Hovering over a column will highlight its downstream and upstream columns as well.
