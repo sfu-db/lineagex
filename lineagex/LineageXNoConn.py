@@ -1,16 +1,18 @@
-from typing import Optional
-from sqlglot import parse_one, exp, expressions
 from typing import List
+from typing import Optional
 
-from .utils import produce_json
-from .SqlToDict import SqlToDict
+from sqlglot import exp, expressions, parse_one
+
 from .ColumnLineageNoConn import ColumnLineageNoConn
+from .SqlToDict import SqlToDict
+from .utils import produce_json
 
 
 class LineageXNoConn:
     def __init__(
         self,
         sql: Optional[str] = "",
+        dialect: str = "postgres",
         target_schema: Optional[str] = "public",
         search_path_schema: Optional[str] = "public",
     ) -> None:
@@ -19,6 +21,7 @@ class LineageXNoConn:
         search_path_schema = [x.strip() for x in search_path_schema.split(",")]
         search_path_schema.append(target_schema)
         self.sql_files_dict = SqlToDict(sql, search_path_schema).sql_files_dict
+        self.dialect = dialect
         self.input_table_dict = {}
         self.finished_list = []
         self._find_lineage_no_conn()
@@ -30,7 +33,7 @@ class LineageXNoConn:
         """
         for name, sql in self.sql_files_dict.items():
             try:
-                sql_ast = parse_one(sql, read="postgres")
+                sql_ast = parse_one(sql, read=self.dialect)
                 all_tables = self._resolve_table(part_ast=sql_ast)
                 for t in all_tables:
                     if t in self.sql_files_dict.keys() and t not in self.finished_list:
@@ -47,7 +50,7 @@ class LineageXNoConn:
     def _run_lineage_no_conn(self, name: Optional[str] = "", sql: Optional[str] = ""):
         print(name, " processing")
         col_lineage = ColumnLineageNoConn(
-            sql=sql, input_table_dict=self.input_table_dict
+            sql=sql, dialect=self.dialect, input_table_dict=self.input_table_dict
         )
         self.output_dict[name] = {
             "tables": col_lineage.table_list,

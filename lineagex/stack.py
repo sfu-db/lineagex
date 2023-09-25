@@ -5,7 +5,6 @@ class Node:
 
 
 class Stack:
-
     # Initializing a stack.
     # Use a dummy node, which is
     # easier for handling edge cases.
@@ -32,7 +31,6 @@ class Stack:
 
     # Get the top item of the stack
     def peek(self):
-
         # Sanitary check to see if we
         # are peeking an empty stack.
         if self.isEmpty():

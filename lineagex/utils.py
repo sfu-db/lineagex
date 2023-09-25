@@ -1,9 +1,9 @@
-import re
-import os
-import ast
 import json
+import os
+import re
+from typing import Any, List, Optional
+
 from psycopg2.extensions import connection
-from typing import Tuple, List, Optional, Any
 
 
 def remove_comments(str1: Optional[str] = "") -> str:
@@ -27,7 +27,9 @@ def remove_comments(str1: Optional[str] = "") -> str:
 
 
 def find_column(
-    table_name: Optional[str] = "", engine: Any = None, search_schema: Optional[str] = ""
+    table_name: Optional[str] = "",
+    engine: Any = None,
+    search_schema: Optional[str] = "",
 ) -> List:
     """
     Find the columns for the base table in the database
@@ -113,7 +115,9 @@ def find_select(q: Optional[str] = "") -> str:
 
 
 def produce_json(
-    output_dict: Optional[dict] = None, engine: connection = None, search_schema: Optional[str] = ""
+    output_dict: Optional[dict] = None,
+    engine: connection = None,
+    search_schema: Optional[str] = "",
 ) -> dict:
     """
     Product the output.json and put into the html
@@ -125,7 +129,7 @@ def produce_json(
     # Get all the table names that are not in the output_dict(mostly base tables)
     all_tables = []
     for key, val in output_dict.items():
-        all_tables.extend(val['tables'])
+        all_tables.extend(val["tables"])
     all_tables = list(set(all_tables) - set(output_dict.keys()))
     base_table_dict = {}
     # If no conn is provided, try to guess the base table's columns
@@ -140,9 +144,13 @@ def produce_json(
         # if db conn is provided
         if engine and search_schema:
             if t.endswith("_ANALYZED"):
-                cols = find_column(table_name=t[:-9], engine=engine, search_schema=search_schema)
+                cols = find_column(
+                    table_name=t[:-9], engine=engine, search_schema=search_schema
+                )
             else:
-                cols = find_column(table_name=t, engine=engine, search_schema=search_schema)
+                cols = find_column(
+                    table_name=t, engine=engine, search_schema=search_schema
+                )
         else:
             cols = base_table_noconn_dict.get(t, [])
         for i in cols:
@@ -167,10 +175,10 @@ def _guess_base_table(output_dict: Optional[dict] = None) -> dict:
             for t in col_val:
                 idx = t.rfind(".")
                 if t[:idx] in base_table_noconn_dict.keys():
-                    if t[idx + 1:] not in base_table_noconn_dict[t[:idx]]:
-                        base_table_noconn_dict[t[:idx]].append(t[idx + 1:])
+                    if t[idx + 1 :] not in base_table_noconn_dict[t[:idx]]:
+                        base_table_noconn_dict[t[:idx]].append(t[idx + 1 :])
                 else:
-                    base_table_noconn_dict[t[:idx]] = [t[idx + 1:]]
+                    base_table_noconn_dict[t[:idx]] = [t[idx + 1 :]]
     return base_table_noconn_dict
 
 
@@ -180,28 +188,26 @@ def _produce_html(output_json: Optional[str] = "") -> None:
     :param output_json: the final output.json file
     """
     # Creating the HTML file
-    file_html = open("index.html", "w", encoding="utf-8")
-    # Adding the input data to the HTML file
-    file_html.write(
-        """<!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    </head>
-    <body>
-      <script>
-        window.inlineSource = `{}`;
-      </script>
-      <div id="main"></div>
-    <script type="text/javascript" src="vendor.js"></script><script type="text/javascript" src="app.js"></script></body>
-    </html>""".format(
-            output_json
+    with open("index.html", "w", encoding="utf-8") as file_html:
+        # Adding the input data to the HTML file
+        file_html.write(
+            """<!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <meta http-equiv="X-UA-Compatible" content="ie=edge">
+        </head>
+        <body>
+          <script>
+            window.inlineSource = `{}`;
+          </script>
+          <div id="main"></div>
+        <script type="text/javascript" src="vendor.js"></script><script type="text/javascript" src="app.js"></script></body>
+        </html>""".format(
+                output_json
+            )
         )
-    )
-    # Saving the data into the HTML file
-    file_html.close()
 
 
 if __name__ == "__main__":

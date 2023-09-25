@@ -1,7 +1,7 @@
-from sqlglot import parse_one, exp
+from typing import List, Optional, Tuple
+
+from sqlglot import exp, parse_one
 from sqlglot import expressions
-from typing import Optional, List, Tuple
-import os
 
 shared_conditions = [exp.Where, exp.EQ, exp.Group, exp.Having, exp.Order]
 shared_conditions_with_table = [
@@ -18,7 +18,10 @@ from_join_exp = [exp.From, exp.Join]
 
 class ColumnLineageNoConn:
     def __init__(
-        self, sql: Optional[str] = "", input_table_dict: Optional[dict] = None
+        self,
+        sql: Optional[str] = "",
+        dialect: str = "postgres",
+        input_table_dict: Optional[dict] = None,
     ):
         self.column_dict = {}
         self.table_alias_dict = {}
@@ -26,7 +29,7 @@ class ColumnLineageNoConn:
         self.cte_dict = {}
         self.unnest_dict = {}
         self.input_table_dict = input_table_dict
-        self.sql_ast = parse_one(sql, read="postgres")
+        self.sql_ast = parse_one(sql, read=dialect)
         self.all_used_col = []
         self.table_list = []
         self.all_subquery_table = []
@@ -214,7 +217,11 @@ class ColumnLineageNoConn:
         :param source_table: all the source tables that this column might originate from
         """
         # Resolve count(*) with no alias, potentially other aggregations, MIN, MAX, SUM
-        if projection.find(exp.Star) and not isinstance(projection.unalias(), exp.Array) and not isinstance(projection, exp.Array):
+        if (
+            projection.find(exp.Star)
+            and not isinstance(projection.unalias(), exp.Array)
+            and not isinstance(projection, exp.Array)
+        ):
             if isinstance(projection, exp.Count):
                 col_name = "count"
                 target_dict = self._resolve_agg_star(
@@ -262,19 +269,23 @@ class ColumnLineageNoConn:
                     used_tables=source_table,
                     target_dict=target_dict,
                 )
-        elif isinstance(projection.unalias(), exp.Array) or isinstance(projection, exp.Array):
+        elif isinstance(projection.unalias(), exp.Array) or isinstance(
+            projection, exp.Array
+        ):
             temp_col = []
             proj_columns = []
             for p in projection.find_all(exp.Column):
                 temp_col.append(p.sql())
             for p in temp_col:
-                proj_columns.extend(self._find_alias_col(
-                                col_sql=p,
-                                temp_table=source_table,
-                            ))
+                proj_columns.extend(
+                    self._find_alias_col(
+                        col_sql=p,
+                        temp_table=source_table,
+                    )
+                )
             target_dict[col_name] = sorted(
                 list(set(proj_columns).union(self.all_used_col))
-                )
+            )
         else:
             proj_columns = []
             # Resolve only *
@@ -390,8 +401,12 @@ class ColumnLineageNoConn:
                             self.table_alias_dict[temp_col_name[0]] = dep_tables
                             self.unnest_dict[temp_col_name[0]] = dep_cols
                             if table_sql.find(exp.TableAlias):
-                                self.table_alias_dict[table_sql.find(exp.TableAlias).text("this")] = dep_tables
-                                self.unnest_dict[table_sql.find(exp.TableAlias).text("this")] = dep_cols
+                                self.table_alias_dict[
+                                    table_sql.find(exp.TableAlias).text("this")
+                                ] = dep_tables
+                                self.unnest_dict[
+                                    table_sql.find(exp.TableAlias).text("this")
+                                ] = dep_cols
                         temp_table_list.extend(dep_tables)
                 for table in table_sql.find_all(exp.Table):
                     temp_table_list = self._find_table(

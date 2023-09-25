@@ -1,14 +1,16 @@
-import re
 import os
+import re
 from typing import List, Optional, Union
 
-from .utils import get_files, find_select, remove_comments
+from .utils import find_select, get_files, remove_comments
 
 rem_regex = re.compile(r"[^a-zA-Z0-9_.]")
 
 
 class SqlToDict:
-    def __init__(self, path: Optional[Union[List, str]] = "", schema_list: Optional[List] = None) -> None:
+    def __init__(
+        self, path: Optional[Union[List, str]] = "", schema_list: Optional[List] = None
+    ) -> None:
         self.path = path
         self.schema_list = schema_list
         self.sql_files = []
@@ -36,7 +38,10 @@ class SqlToDict:
                 # pop DROP IF EXISTS
                 if len(org_sql_split) == 2:
                     temp_str = org_sql_split[0].upper()
-                    if temp_str.find("SELECT ") == -1 and (temp_str.startswith("DROP TABLE IF EXISTS") or temp_str.startswith("DROP VIEW IF EXISTS")):
+                    if temp_str.find("SELECT ") == -1 and (
+                        temp_str.startswith("DROP TABLE IF EXISTS")
+                        or temp_str.startswith("DROP VIEW IF EXISTS")
+                    ):
                         org_sql_split.pop(0)
                 if f.endswith(".sql") or f.endswith(".SQL"):
                     f = os.path.basename(f)[:-4]
@@ -46,7 +51,9 @@ class SqlToDict:
                     for idx, val in enumerate(org_sql_split):
                         self._preprocess_sql(org_sql=val, file=f + "_" + str(idx))
 
-    def _preprocess_sql(self, org_sql: Optional[str] = "", file: Optional[str] = "") -> None:
+    def _preprocess_sql(
+        self, org_sql: Optional[str] = "", file: Optional[str] = ""
+    ) -> None:
         """
         Process the sql, remove database name in the clause/datetime_add/datetime_sub adding quotes
         :param org_sql: the original sql, file: file name for the sql
