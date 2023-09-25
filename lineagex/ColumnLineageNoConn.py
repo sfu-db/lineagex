@@ -18,7 +18,10 @@ from_join_exp = [exp.From, exp.Join]
 
 class ColumnLineageNoConn:
     def __init__(
-        self, sql: Optional[str] = "", input_table_dict: Optional[dict] = None
+        self,
+        sql: Optional[str] = "",
+        dialect: str = "postgres",
+        input_table_dict: Optional[dict] = None,
     ):
         self.column_dict = {}
         self.table_alias_dict = {}
@@ -26,7 +29,7 @@ class ColumnLineageNoConn:
         self.cte_dict = {}
         self.unnest_dict = {}
         self.input_table_dict = input_table_dict
-        self.sql_ast = parse_one(sql, read="postgres")
+        self.sql_ast = parse_one(sql, read=dialect)
         self.all_used_col = []
         self.table_list = []
         self.all_subquery_table = []

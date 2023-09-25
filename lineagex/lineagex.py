@@ -4,6 +4,8 @@ from typing import List, Optional, Union
 from .LineageXNoConn import LineageXNoConn
 from .LineageXWithConn import LineageXWithConn
 
+IMPLEMENTED_DIALECTS_WITH_CONN = ("postgres",)
+
 
 def save_js_file():
     for filename in ["app.js", "vendor.js"]:
@@ -44,6 +46,7 @@ class lineagex:
         target_schema: Optional[str] = "",
         conn_string: Optional[str] = None,
         search_path_schema: Optional[str] = "",
+        dialect: str = "postgres",
     ) -> None:
         validate_sql(sql)
         target_schema, search_path_schema = validate_schema(
@@ -51,6 +54,9 @@ class lineagex:
         )
 
         if conn_string:
+            if dialect not in IMPLEMENTED_DIALECTS_WITH_CONN:
+                raise NotImplemented(f"Not implemented dialect: {dialect}")
+
             lx = LineageXWithConn(
                 sql=sql,
                 target_schema=target_schema,
@@ -62,6 +68,7 @@ class lineagex:
         else:
             lx = LineageXNoConn(
                 sql=sql,
+                dialect=dialect,
                 target_schema=target_schema,
                 search_path_schema=search_path_schema,
             )
