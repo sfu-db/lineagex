@@ -6,14 +6,12 @@ from .LineageXWithConn import LineageXWithConn
 
 
 def save_js_file():
-    data = pkgutil.get_data(__name__, "app.js")
-    js_file = open("app.js", "w", encoding="utf-8")
-    js_file.write(data.decode("utf-8"))
-    js_file.close()
-    data = pkgutil.get_data(__name__, "vendor.js")
-    js_file = open("vendor.js", "w", encoding="utf-8")
-    js_file.write(data.decode("utf-8"))
-    js_file.close()
+    for filename in ["app.js", "vendor.js"]:
+        data = pkgutil.get_data(__name__, filename)
+
+        with open(filename, "w", encoding="utf-8") as js_file:
+            if data:
+                js_file.write(data.decode("utf-8"))
 
 
 class lineagex:
