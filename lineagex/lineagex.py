@@ -5,6 +5,17 @@ from .LineageXNoConn import LineageXNoConn
 from .LineageXWithConn import LineageXWithConn
 
 
+def _save_js_file():
+    data = pkgutil.get_data(__name__, "app.js")
+    js_file = open("app.js", "w", encoding="utf-8")
+    js_file.write(data.decode("utf-8"))
+    js_file.close()
+    data = pkgutil.get_data(__name__, "vendor.js")
+    js_file = open("vendor.js", "w", encoding="utf-8")
+    js_file.write(data.decode("utf-8"))
+    js_file.close()
+
+
 class lineagex:
     def __init__(
         self,
@@ -35,24 +46,14 @@ class lineagex:
                 conn_string=conn_string,
                 search_path_schema=search_path_schema,
             )
-            self._save_js_file()
+            _save_js_file()
             self.output_dict = lx.output_dict
         else:
             lx = LineageXNoConn(
                 sql=sql, target_schema=target_schema, search_path_schema= search_path_schema
             )
-            self._save_js_file()
+            _save_js_file()
             self.output_dict = lx.output_dict
-
-    def _save_js_file(self):
-        data = pkgutil.get_data(__name__, "app.js")
-        js_file = open("app.js", "w", encoding="utf-8")
-        js_file.write(data.decode("utf-8"))
-        js_file.close()
-        data = pkgutil.get_data(__name__, "vendor.js")
-        js_file = open("vendor.js", "w", encoding="utf-8")
-        js_file.write(data.decode("utf-8"))
-        js_file.close()
 
 
 if __name__ == "__main__":
