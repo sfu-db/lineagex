@@ -1,9 +1,8 @@
-import os
-from typing import Union, List, Optional
 import pkgutil
+from typing import List, Optional, Union
 
-from .LineageXWithConn import LineageXWithConn
 from .LineageXNoConn import LineageXNoConn
+from .LineageXWithConn import LineageXWithConn
 
 
 class lineagex:
