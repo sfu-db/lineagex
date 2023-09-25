@@ -188,28 +188,26 @@ def _produce_html(output_json: Optional[str] = "") -> None:
     :param output_json: the final output.json file
     """
     # Creating the HTML file
-    file_html = open("index.html", "w", encoding="utf-8")
-    # Adding the input data to the HTML file
-    file_html.write(
-        """<!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    </head>
-    <body>
-      <script>
-        window.inlineSource = `{}`;
-      </script>
-      <div id="main"></div>
-    <script type="text/javascript" src="vendor.js"></script><script type="text/javascript" src="app.js"></script></body>
-    </html>""".format(
-            output_json
+    with open("index.html", "w", encoding="utf-8") as file_html:
+        # Adding the input data to the HTML file
+        file_html.write(
+            """<!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <meta http-equiv="X-UA-Compatible" content="ie=edge">
+        </head>
+        <body>
+          <script>
+            window.inlineSource = `{}`;
+          </script>
+          <div id="main"></div>
+        <script type="text/javascript" src="vendor.js"></script><script type="text/javascript" src="app.js"></script></body>
+        </html>""".format(
+                output_json
+            )
         )
-    )
-    # Saving the data into the HTML file
-    file_html.close()
 
 
 if __name__ == "__main__":
