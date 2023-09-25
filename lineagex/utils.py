@@ -1,9 +1,9 @@
-import re
-import os
-import ast
 import json
+import os
+import re
+from typing import Any, List, Optional
+
 from psycopg2.extensions import connection
-from typing import Tuple, List, Optional, Any
 
 
 def remove_comments(str1: Optional[str] = "") -> str:

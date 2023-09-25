@@ -1,14 +1,13 @@
-import os
-import re
+from typing import List, Optional, Tuple, Union
+
 import psycopg2
 from psycopg2 import OperationalError
 from psycopg2.extensions import connection
-from typing import Tuple, List, Optional, Union
 
-from .utils import produce_json, find_column
+from .ColumnLineage import ColumnLineage
 from .SqlToDict import SqlToDict
 from .stack import *
-from .ColumnLineage import ColumnLineage
+from .utils import find_column, produce_json
 
 
 class LineageXWithConn:

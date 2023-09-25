@@ -1,9 +1,10 @@
 import re
-from sqlglot import parse_one, exp
-from sqlglot.expressions import CTE
-from sqlglot import expressions
+from typing import Any, List, Optional, Tuple
+
 from psycopg2.extensions import connection
-from typing import List, Tuple, Optional, Any
+from sqlglot import exp, parse_one
+from sqlglot import expressions
+from sqlglot.expressions import CTE
 
 from .utils import find_column
 

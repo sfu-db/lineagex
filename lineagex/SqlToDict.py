@@ -1,8 +1,8 @@
-import re
 import os
+import re
 from typing import List, Optional, Union
 
-from .utils import get_files, find_select, remove_comments
+from .utils import find_select, get_files, remove_comments
 
 rem_regex = re.compile(r"[^a-zA-Z0-9_.]")
 

@@ -1,7 +1,7 @@
-from sqlglot import parse_one, exp
+from typing import List, Optional, Tuple
+
+from sqlglot import exp, parse_one
 from sqlglot import expressions
-from typing import Optional, List, Tuple
-import os
 
 shared_conditions = [exp.Where, exp.EQ, exp.Group, exp.Having, exp.Order]
 shared_conditions_with_table = [

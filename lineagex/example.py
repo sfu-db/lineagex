@@ -1,5 +1,6 @@
-from .lineagex import lineagex
 import os
+
+from .lineagex import lineagex
 
 
 class example:

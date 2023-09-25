@@ -1,10 +1,11 @@
-from typing import Optional
-from sqlglot import parse_one, exp, expressions
 from typing import List
+from typing import Optional
 
-from .utils import produce_json
-from .SqlToDict import SqlToDict
+from sqlglot import exp, expressions, parse_one
+
 from .ColumnLineageNoConn import ColumnLineageNoConn
+from .SqlToDict import SqlToDict
+from .utils import produce_json
 
 
 class LineageXNoConn:
