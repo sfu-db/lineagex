@@ -14,6 +14,29 @@ def save_js_file():
                 js_file.write(data.decode("utf-8"))
 
 
+def validate_sql(sql: Union[List, str]) -> None:
+    if sql is None:
+        raise ValueError(
+            "The SQL input cannot be empty, please input a list of SQL or a path to SQL"
+        )
+    elif not isinstance(sql, list) and not isinstance(sql, str):
+        raise ValueError(
+            "Wrong SQL input format, please input a list of SQL or a path to SQL"
+        )
+
+
+def validate_schema(target_schema: str, search_path_schema: str) -> tuple:
+    if target_schema == "" and search_path_schema == "":
+        target_schema = "public"
+        search_path_schema = "public"
+    elif target_schema == "" and not search_path_schema == "":
+        target_schema = search_path_schema.split(",")[0]
+    elif not target_schema == "" and search_path_schema == "":
+        search_path_schema = target_schema
+
+    return target_schema, search_path_schema
+
+
 class lineagex:
     def __init__(
         self,
@@ -22,21 +45,11 @@ class lineagex:
         conn_string: Optional[str] = None,
         search_path_schema: Optional[str] = "",
     ) -> None:
-        if sql is None:
-            raise ValueError(
-                "the SQL input cannot be empty, please input a list of sql or path to sql"
-            )
-        elif not isinstance(sql, list) and not isinstance(sql, str):
-            raise ValueError(
-                "wrong SQL input format, please input a list of sql or path to sql"
-            )
-        if target_schema == "" and search_path_schema == "":
-            target_schema = "public"
-            search_path_schema = "public"
-        elif target_schema == "" and not search_path_schema == "":
-            target_schema = search_path_schema.split(",")[0]
-        elif not target_schema == "" and search_path_schema == "":
-            search_path_schema = target_schema
+        validate_sql(sql)
+        target_schema, search_path_schema = validate_schema(
+            target_schema, search_path_schema
+        )
+
         if conn_string:
             lx = LineageXWithConn(
                 sql=sql,
@@ -48,7 +61,9 @@ class lineagex:
             self.output_dict = lx.output_dict
         else:
             lx = LineageXNoConn(
-                sql=sql, target_schema=target_schema, search_path_schema= search_path_schema
+                sql=sql,
+                target_schema=target_schema,
+                search_path_schema=search_path_schema,
             )
             save_js_file()
             self.output_dict = lx.output_dict
