@@ -36,13 +36,14 @@ class SqlToDict:
                 org_sql = remove_comments(str1=org_sql)
                 org_sql_split = list(filter(None, org_sql.split(";")))
                 # pop DROP IF EXISTS
-                if len(org_sql_split) == 2:
-                    temp_str = org_sql_split[0].upper()
-                    if temp_str.find("SELECT ") == -1 and (
-                        temp_str.startswith("DROP TABLE IF EXISTS")
-                        or temp_str.startswith("DROP VIEW IF EXISTS")
-                    ):
-                        org_sql_split.pop(0)
+                if len(org_sql_split) > 0:
+                    for s in org_sql_split:
+                        temp_str = s.upper()
+                        if temp_str.find("SELECT ") == -1 and (
+                            temp_str.startswith("DROP TABLE IF EXISTS")
+                            or temp_str.startswith("DROP VIEW IF EXISTS")
+                        ):
+                            org_sql_split.pop(org_sql_split.index(s))
                 if f.endswith(".sql") or f.endswith(".SQL"):
                     f = os.path.basename(f)[:-4]
                 if len(org_sql_split) <= 1:
@@ -50,6 +51,10 @@ class SqlToDict:
                 else:
                     for idx, val in enumerate(org_sql_split):
                         self._preprocess_sql(org_sql=val, file=f + "_" + str(idx))
+        for key, value in self.sql_files_dict.copy().items():
+            if key.startswith("."):
+                self.sql_files_dict[key[1:]] = value
+                del self.sql_files_dict[key]
 
     def _preprocess_sql(
         self, org_sql: Optional[str] = "", file: Optional[str] = ""
@@ -143,6 +148,8 @@ class SqlToDict:
             delete_counter = self.deletion_dict[self.curr_name]
             self.curr_name = self.curr_name + "_DELETION_{}".format(delete_counter)
             self.sql_files_dict[self.curr_name] = find_select(q=ret_sql)
+        elif re.search("CREATE EXTENSION", ret_sql, flags=re.IGNORECASE):
+            return
         else:
             if os.path.isfile(file):
                 name = os.path.basename(file)[:-4]

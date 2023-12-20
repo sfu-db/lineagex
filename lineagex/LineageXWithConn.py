@@ -1,4 +1,5 @@
 from typing import List, Optional, Tuple, Union
+import time
 
 import psycopg2
 from psycopg2 import OperationalError
@@ -18,6 +19,7 @@ class LineageXWithConn:
         conn_string: Optional[str] = "",
         search_path_schema: Optional[str] = "public",
     ) -> None:
+        self.transaction_time = 0
         self.part_tables = None
         self.df = None
         self.schema = target_schema
@@ -121,6 +123,7 @@ class LineageXWithConn:
         )
         self._delete_view()
         self.conn.close()
+        #print("total transaction time: ", self.transaction_time)
 
     def _delete_view(self) -> None:
         """
@@ -129,11 +132,13 @@ class LineageXWithConn:
         """
         # reverse it just in case to drop dependencies first
         self.new_view_list = self.new_view_list[::-1]
+        start_time = time.time()
         cur = self.conn.cursor()
         for i in self.new_view_list:
             cur.execute("""DROP TABLE {} CASCADE""".format(i))
             print(i + " dropped")
         cur.close()
+        self.transaction_time += (time.time() - start_time)
 
     def _create_view(self, name: Optional[str] = "", sql: Optional[str] = "") -> None:
         """
@@ -144,6 +149,7 @@ class LineageXWithConn:
         :return: None
         """
         # connect and create view
+        start_time = time.time()
         cur = self.conn.cursor()
         cur.execute(
             """SET search_path TO {}, {};""".format(self.search_schema, self.schema)
@@ -161,6 +167,7 @@ class LineageXWithConn:
                 )
             )
         cur.close()
+        self.transaction_time += (time.time() - start_time)
         print(self.schema + "." + name + " created")
 
     def _get_plan(self, sql: Optional[str] = "") -> dict:
@@ -169,6 +176,7 @@ class LineageXWithConn:
         :param sql: the sql for getting the plan
         :return: the physical plan of the sql
         """
+        start_time = time.time()
         cur = self.conn.cursor()
         cur.execute("""SET search_path TO {};""".format(self.search_schema))
         cur.execute(
@@ -176,6 +184,7 @@ class LineageXWithConn:
         )
         log_plan = cur.fetchall()
         cur.close()
+        self.transaction_time += (time.time() - start_time)
         while True:
             if isinstance(log_plan, list) or isinstance(log_plan, tuple):
                 log_plan = log_plan[0]
@@ -204,7 +213,7 @@ class LineageXWithConn:
                 table_name = "lineagex_temp_{}".format(name)
                 self._create_view(name=table_name, sql=sql)
                 self.new_view_list.append(self.schema + "." + table_name)
-            elif name.find("_DELETION_") or name.find("_INSERTION_"):
+            elif name.find("_DELETION_") != -1 or name.find("_INSERTION_") != -1:
                 table_name = name.replace(".", "_")
                 self._create_view(name=table_name, sql=sql)
                 self.new_view_list.append(self.schema + "." + table_name)
@@ -235,7 +244,7 @@ class LineageXWithConn:
                 part_tables=self.part_tables,
                 search_schema=self.search_schema,
             )
-            if name.isnumeric() or name.find("_DELETION_") or name.find("_INSERTION_"):
+            if name.isnumeric() or name.find("_DELETION_") != -1 or name.find("_INSERTION_") != -1:
                 table_name = name
             self.output_dict[table_name] = {
                 "tables": col_lineage.table_list,

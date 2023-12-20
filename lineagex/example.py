@@ -46,7 +46,7 @@ class example:
         elif case == "mimic-iii":
             t_noconn = lineagex(
                 sql=os.path.join(cwd, "examples", "mimic-iii"),
-                target_schema="mimiciv_derived",
+                target_schema="mimiciii_derived",
                 search_path_schema="mimiciii_clinical, public",
             )
             print(

@@ -41,6 +41,7 @@ class LineageXNoConn:
                         self.finished_list.append(t)
                 if name not in self.finished_list:
                     self._run_lineage_no_conn(name=name, sql=sql)
+                    self.finished_list.append(name)
             except Exception as e:
                 print("{} is not processed because it countered {}".format(name, e))
                 continue
