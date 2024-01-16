@@ -53,10 +53,10 @@ class LineageXNoConn:
         col_lineage = ColumnLineageNoConn(
             sql=sql, dialect=self.dialect, input_table_dict=self.input_table_dict
         )
-        self.output_dict[name] = {
+        self.output_dict[self.target_schema + "." + name] = {
             "tables": col_lineage.table_list,
             "columns": col_lineage.column_dict,
-            "table_name": name,
+            "table_name": self.target_schema + "." + name,
         }
         # add to the dict with the already parsed tables
         self.input_table_dict[self.target_schema + "." + name] = list(

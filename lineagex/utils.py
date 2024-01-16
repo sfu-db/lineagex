@@ -130,7 +130,14 @@ def produce_json(
     all_tables = []
     for key, val in output_dict.items():
         all_tables.extend(val["tables"])
-    all_tables = list(set(all_tables) - set(output_dict.keys()))
+    all_tables = list(
+        set(all_tables)
+        - set(output_dict.keys())
+        - set([i.split(".")[-1] for i in list(output_dict.keys())])
+    )
+    for i in all_tables:
+        if len(i.split(".")) > 1 and i.split(".")[-1] in all_tables:
+            all_tables.pop(all_tables.index(i.split(".")[-1]))
     base_table_dict = {}
     # If no conn is provided, try to guess the base table's columns
     base_table_noconn_dict = {}
