@@ -1,3 +1,4 @@
+import time
 from typing import List
 from typing import Optional
 
@@ -6,6 +7,20 @@ from sqlglot import exp, expressions, parse_one
 from .ColumnLineageNoConn import ColumnLineageNoConn
 from .SqlToDict import SqlToDict
 from .utils import produce_json
+
+
+def parse_one_sql(sql):
+    dialects = ["postgres", "oracle", "mysql", ""]
+    parsed_sql = None
+    for dialect in dialects:
+        try:
+            parsed_sql = parse_one(sql, read=dialect)
+        except Exception as e:
+            continue
+
+        if parsed_sql is not None:
+            break
+    return parsed_sql
 
 
 class LineageXNoConn:
@@ -17,6 +32,7 @@ class LineageXNoConn:
         search_path_schema: Optional[str] = "public",
     ) -> None:
         self.output_dict = {}
+        self.parsed = 0
         self.target_schema = target_schema
         search_path_schema = [x.strip() for x in search_path_schema.split(",")]
         search_path_schema.append(target_schema)
@@ -31,9 +47,12 @@ class LineageXNoConn:
         The driver function to extract the table lineage information
         :return: output an interactive html for the table lineage information
         """
+        not_parsed = 0
+        start_time = time.time()
         for name, sql in self.sql_files_dict.items():
             try:
-                sql_ast = parse_one(sql, read=self.dialect)
+                # sql_ast = parse_one(sql, read=self.dialect)
+                sql_ast = parse_one_sql(sql=sql)
                 all_tables = self._resolve_table(part_ast=sql_ast)
                 for t in all_tables:
                     if t in self.sql_files_dict.keys() and t not in self.finished_list:
@@ -44,12 +63,19 @@ class LineageXNoConn:
                     self.finished_list.append(name)
             except Exception as e:
                 print("{} is not processed because it countered {}".format(name, e))
+                not_parsed += 1
                 continue
         self._guess_schema_name()
+        print(
+            "{} SQLs are parsed, {} SQLs are not parsed, took a total of {:.1f} seconds".format(
+                self.parsed, not_parsed, time.time() - start_time
+            )
+        )
         produce_json(self.output_dict)
 
     def _run_lineage_no_conn(self, name: Optional[str] = "", sql: Optional[str] = ""):
         print(name, " processing")
+        self.parsed += 1
         col_lineage = ColumnLineageNoConn(
             sql=sql, dialect=self.dialect, input_table_dict=self.input_table_dict
         )

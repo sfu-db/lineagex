@@ -19,6 +19,8 @@ class LineageXWithConn:
         conn_string: Optional[str] = "",
         search_path_schema: Optional[str] = "public",
     ) -> None:
+        self.parsed = 0
+        self.not_parsed = 0
         self.transaction_time = 0
         self.part_tables = None
         self.df = None
@@ -40,6 +42,7 @@ class LineageXWithConn:
         The driver function to extract the table lineage information
         :return: output an interactive html for the table lineage information
         """
+        start_time = time.time()
         self.part_tables, self.schema_list = self._get_part_tables()
         # If the input is a list with no SELECT , assume it to be a list of views/schema
         if isinstance(self.sql, List) and not any(
@@ -101,8 +104,10 @@ class LineageXWithConn:
                         "columns": col_lineage.column_dict,
                         "table_name": name,
                     }
+                    self.parsed += 1
                 except Exception as e:
                     print("{} is not processed because it countered {}".format(name, e))
+                    self.not_parsed += 1
                     continue
         # path or a list of SQL that at least one element contains
         else:
@@ -115,6 +120,7 @@ class LineageXWithConn:
                         continue
                 except Exception as e:
                     print("{} is not processed because it countered {}".format(name, e))
+                    self.not_parsed += 1
                     continue
         produce_json(
             output_dict=self.output_dict,
@@ -123,7 +129,15 @@ class LineageXWithConn:
         )
         self._delete_view()
         self.conn.close()
-        #print("total transaction time: ", self.transaction_time)
+        print(
+            "{} SQLs are parsed, {} SQLs are not parsed, took a total of {:.1f} seconds, total transaction time is {:.1f}".format(
+                self.parsed,
+                self.not_parsed,
+                time.time() - start_time,
+                self.transaction_time,
+            )
+        )
+        # print("total transaction time: ", self.transaction_time)
 
     def _delete_view(self) -> None:
         """
@@ -138,7 +152,7 @@ class LineageXWithConn:
             cur.execute("""DROP TABLE {} CASCADE""".format(i))
             print(i + " dropped")
         cur.close()
-        self.transaction_time += (time.time() - start_time)
+        self.transaction_time += time.time() - start_time
 
     def _create_view(self, name: Optional[str] = "", sql: Optional[str] = "") -> None:
         """
@@ -167,7 +181,7 @@ class LineageXWithConn:
                 )
             )
         cur.close()
-        self.transaction_time += (time.time() - start_time)
+        self.transaction_time += time.time() - start_time
         print(self.schema + "." + name + " created")
 
     def _get_plan(self, sql: Optional[str] = "") -> dict:
@@ -184,7 +198,7 @@ class LineageXWithConn:
         )
         log_plan = cur.fetchall()
         cur.close()
-        self.transaction_time += (time.time() - start_time)
+        self.transaction_time += time.time() - start_time
         while True:
             if isinstance(log_plan, list) or isinstance(log_plan, tuple):
                 log_plan = log_plan[0]
@@ -244,7 +258,11 @@ class LineageXWithConn:
                 part_tables=self.part_tables,
                 search_schema=self.search_schema,
             )
-            if name.isnumeric() or name.find("_DELETION_") != -1 or name.find("_INSERTION_") != -1:
+            if (
+                name.isnumeric()
+                or name.find("_DELETION_") != -1
+                or name.find("_INSERTION_") != -1
+            ):
                 table_name = name
             self.output_dict[table_name] = {
                 "tables": col_lineage.table_list,
@@ -252,6 +270,7 @@ class LineageXWithConn:
                 "table_name": table_name,
             }
             self.finished_list.append(name)
+            self.parsed += 1
             while not self.s.isEmpty():
                 if self.s.peek() in self.sql_files_dict.keys():
                     sql = self.sql_files_dict[self.s.peek()]
@@ -292,11 +311,14 @@ class LineageXWithConn:
                         + " is skipped because it is missing dependency table "
                         + table_name
                     )
+                    self.not_parsed += 1
                     return
             else:
                 print(e)
+                self.not_parsed += 1
         except Exception as e:
             print(e)
+            self.not_parsed += 1
 
     def _check_db_connection(self, conn_string: Optional[str] = "") -> connection:
         """
