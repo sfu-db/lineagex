@@ -9,7 +9,12 @@ from .SqlToDict import SqlToDict
 from .utils import produce_json
 
 
-def parse_one_sql(sql):
+def parse_one_sql(sql: Optional[str] = "") -> expressions:
+    """
+    The function to try different dialects for parsing the SQL
+    :param sql: the input sql
+    :return: the parsed sql AST
+    """
     dialects = ["postgres", "oracle", "mysql", ""]
     parsed_sql = None
     for dialect in dialects:

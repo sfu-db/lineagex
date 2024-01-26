@@ -37,6 +37,25 @@ from_join_exp = [exp.From, exp.Join]
 compare_cond = [exp.EQ, exp.GT, exp.LT, exp.GTE, exp.LTE]
 
 
+def parse_one_sql(sql: Optional[str] = "") -> expressions:
+    """
+    The function to try different dialects for parsing the SQL
+    :param sql: the input sql
+    :return: the parsed sql AST
+    """
+    dialects = ["postgres", "oracle", "mysql", ""]
+    parsed_sql = None
+    for dialect in dialects:
+        try:
+            parsed_sql = parse_one(sql, read=dialect)
+        except Exception as e:
+            continue
+
+        if parsed_sql is not None:
+            break
+    return parsed_sql
+
+
 class ColumnLineageNoConn:
     def __init__(
         self,
@@ -50,7 +69,8 @@ class ColumnLineageNoConn:
         self.cte_dict = {}
         self.unnest_dict = {}
         self.input_table_dict = input_table_dict
-        self.sql_ast = parse_one(sql, read=dialect)
+        #self.sql_ast = parse_one(sql, read=dialect)
+        self.sql_ast = parse_one_sql(sql=sql)
         self.all_used_col = []
         self.table_list = []
         self.all_subquery_table = []
