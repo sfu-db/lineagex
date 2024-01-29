@@ -79,7 +79,7 @@ class lineagex:
             self.output_dict = lx.output_dict
 
     def show(self):
-        display(HTML(html_url))
+        display(HTML("index.html"))
 
     def show_tab(self):
         cwd = os.getcwd()
