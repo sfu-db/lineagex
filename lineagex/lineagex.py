@@ -1,4 +1,7 @@
+import os
 import pkgutil
+import webbrowser
+from IPython.display import display, HTML
 from typing import List, Optional, Union
 
 from .LineageXNoConn import LineageXNoConn
@@ -74,6 +77,15 @@ class lineagex:
             )
             save_js_file()
             self.output_dict = lx.output_dict
+
+    def show(self):
+        display(IFrame(src=f"{html_url}", width="100%", height="1000"))
+
+    def show_tab(self):
+        cwd = os.getcwd()
+        p = os.path.join(cwd, "index.html").replace("\\", "/")
+        print("opening the lineage page from {}".format(p))
+        webbrowser.open_new_tab(f"file://{p}")
 
 
 if __name__ == "__main__":
