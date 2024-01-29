@@ -216,7 +216,7 @@ def _produce_html(output_json: Optional[str] = "") -> None:
                 output_json
             )
         )
-    cwd = os.path.dirname(os.path.realpath(__file__))
+    cwd = os.getcwd()
     p = os.path.join(cwd, "index.html").replace("\\", "/")
     print("opening the lineage page from {}".format(p))
     webbrowser.open_new_tab(f"file://{p}")
