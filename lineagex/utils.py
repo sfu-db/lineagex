@@ -198,8 +198,7 @@ def _produce_html(output_json: Optional[str] = "") -> None:
     with open("index.html", "w", encoding="utf-8") as file_html:
         # Adding the input data to the HTML file
         file_html.write(
-            """<div style="width:100%; height:800px;">
-            <!DOCTYPE html>
+            """<!DOCTYPE html>
         <html lang="en">
         <head>
           <meta charset="UTF-8">
@@ -212,8 +211,7 @@ def _produce_html(output_json: Optional[str] = "") -> None:
           </script>
           <div id="main"></div>
         <script type="text/javascript" src="vendor.js"></script><script type="text/javascript" src="app.js"></script></body>
-        </html>
-        </div>""".format(
+        </html>""".format(
                 output_json
             )
         )

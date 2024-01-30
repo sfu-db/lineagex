@@ -79,7 +79,17 @@ class lineagex:
             self.output_dict = lx.output_dict
 
     def show(self):
-        display(HTML("index.html"))
+        with open("index.html", "r", encoding="utf-8") as file_html:
+            curr_html = file_html.read()
+        with open("index_jupyter.html", "w", encoding="utf-8") as file_html:
+            file_html.write(
+                """<div style="width:100%; height:800px;">
+                {}
+            </div>""".format(
+                    curr_html
+                )
+            )
+        display(HTML("index_jupyter.html"))
 
     def show_tab(self):
         cwd = os.getcwd()
