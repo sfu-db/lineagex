@@ -249,7 +249,7 @@ class ColumnLineageNoConn:
 
     def _sub_shared_col_conds_cte(
         self, sql_ast: expressions = None
-    ) -> Tuple[List, List, List]:
+    ) -> Tuple[List, List, List, str]:
         """
         Run the subquery inside the cte first that is with the shared conditions(WHERE, GROUP BY, etc)
         :param sql_ast: the ast for the cte
@@ -257,6 +257,7 @@ class ColumnLineageNoConn:
         all_cte_sub_table = []
         potential_cte_sub_table = []
         all_cte_sub_cols = []
+        sub_name = ""
         # add in more conditions, including FROM/JOIN
         for cond in shared_conditions_with_table:
             for cond_sql in sql_ast.find_all(cond):
@@ -309,7 +310,7 @@ class ColumnLineageNoConn:
                         self.cte_dict[sub_name] = temp_sub_dict
                         sub_ast.replace(exp.Table(this=sub_name))
                     sub_ast.pop()
-        return all_cte_sub_table, all_cte_sub_cols, potential_cte_sub_table
+        return all_cte_sub_table, all_cte_sub_cols, potential_cte_sub_table, sub_name
 
     def _run_cte_lineage(self):
         """
@@ -320,6 +321,7 @@ class ColumnLineageNoConn:
                 all_cte_sub_table,
                 all_cte_sub_cols,
                 potential_cte_sub_table,
+                sub_name
             ) = self._sub_shared_col_conds_cte(sql_ast=cte)
             self.all_used_col = []
             temp_cte_dict = {}
@@ -327,6 +329,8 @@ class ColumnLineageNoConn:
             if len(temp_cte_table) == 0:
                 temp_cte_table = potential_cte_sub_table
             cte_name = cte.find(exp.TableAlias).alias_or_name
+            if sub_name in temp_cte_table:
+                temp_cte_table.remove(sub_name)
             self.cte_table_dict[cte_name] = list(
                 set(
                     self._find_all_tables(temp_table_list=temp_cte_table)

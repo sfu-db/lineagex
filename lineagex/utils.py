@@ -163,10 +163,12 @@ def produce_json(
         for i in cols:
             base_table_dict[t]["columns"][i] = [""]
         base_table_dict[t]["table_name"] = str(t)
+        base_table_dict[t]["sql"] = "this is a base table"
     base_table_dict.update(output_dict)
     with open("output.json", "w") as outfile:
         json.dump(base_table_dict, outfile)
-    _produce_html(output_json=str(base_table_dict).replace("'", '"'))
+    #_produce_html(output_json=str(base_table_dict).replace("'", '"'))
+    _produce_html(output_json=base_table_dict)
     return base_table_dict
 
 
@@ -189,7 +191,7 @@ def _guess_base_table(output_dict: Optional[dict] = None) -> dict:
     return base_table_noconn_dict
 
 
-def _produce_html(output_json: Optional[str] = "") -> None:
+def _produce_html(output_json: Optional[dict] = "") -> None:
     """
     Produce the html file for viewing
     :param output_json: the final output.json file
@@ -212,7 +214,7 @@ def _produce_html(output_json: Optional[str] = "") -> None:
           <div id="main"></div>
         <script type="text/javascript" src="vendor.js"></script><script type="text/javascript" src="app.js"></script></body>
         </html>""".format(
-                output_json
+                json.dumps(output_json)
             )
         )
 

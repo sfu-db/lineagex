@@ -103,6 +103,7 @@ class LineageXWithConn:
                         "tables": col_lineage.table_list,
                         "columns": col_lineage.column_dict,
                         "table_name": name,
+                        "sql": sql,
                     }
                     self.parsed += 1
                 except Exception as e:
@@ -268,6 +269,7 @@ class LineageXWithConn:
                 "tables": col_lineage.table_list,
                 "columns": col_lineage.column_dict,
                 "table_name": table_name,
+                "sql": sql,
             }
             self.finished_list.append(name)
             self.parsed += 1

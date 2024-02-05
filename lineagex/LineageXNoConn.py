@@ -95,6 +95,7 @@ class LineageXNoConn:
             "tables": col_lineage.table_list,
             "columns": col_lineage.column_dict,
             "table_name": name,
+            "sql": sql,
         }
         # add to the dict with the already parsed tables
         self.input_table_dict[self.target_schema + "." + name] = list(
