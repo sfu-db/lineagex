@@ -29,6 +29,35 @@ A general introduction of the project can be found in this [blog post](https://m
 - Variety of SQL statements: LineageX supports a variety of SQL statements, aside from the typical `SELECT` statement, it also supports `CREATE TABLE/VIEW [IF NOT EXISTS]` statement as well as the `INSERT` and `DELETE` statement.
 - [dbt](https://docs.getdbt.com/) support: LineageX also implemented in the [dbt-LineageX](https://github.com/sfu-db/dbt-lineagex), it is added into a dbt project and by using the dbt library [fal](https://github.com/fal-ai/fal), it is able to reuse the Python core and create the similar output from the dbt project.
 
+## Supported JSON format:
+You can upload JSON files into the HTML produced and draw its lineage graph. Here is the supported format:
+```javascript
+{
+    table_name: {
+        tables:[],
+        columns:{
+            column1: [],
+            column2: []
+        },
+        table_name: ""
+    }, 
+    table_name1:...
+}
+```
+As an example:
+```javascript
+{
+  schema1.table1: {
+    tables: [schema1.other_table], 
+    columns: {
+      column1: [schema1.other_table.columns1, schema1.other_table.columns3], 
+      column2: [schema1.other_table.columns2, schema1.other_table.columns3]
+    }, 
+    table_name: schema1.table1
+  }, 
+}
+```
+
 # Supported Database Connection Types
 When entering the `conn_string` parameter, only supported databases' connection types can be parsed successfully, or the lineage graph would be created as if no `conn_string` parameter is given.
 
