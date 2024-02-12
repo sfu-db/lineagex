@@ -36,24 +36,26 @@ You can upload JSON files into the HTML produced and draw its lineage graph. Her
     table_name: {
         tables:[],
         columns:{
-            column1: [],
-            column2: []
+            column1: [[], []], // The first element is the list of columns that contribute directly to column1, 
+                               // The second element is the list of columns that are referenced, such as columns from WHERE/GROUP BY
+            column2: [[], []]
         },
-        table_name: ""
+        table_name: "",
+        sql: "",
     }, 
-    table_name1:...
 }
 ```
 As an example:
 ```javascript
 {
-  schema1.table1: {
+  table1: {
     tables: [schema1.other_table], 
     columns: {
-      column1: [schema1.other_table.columns1, schema1.other_table.columns3], 
-      column2: [schema1.other_table.columns2, schema1.other_table.columns3]
+      column1: [[schema1.other_table.columns1], [schema1.other_table.columns3]], 
+      column2: [[schema1.other_table.columns2], [schema1.other_table.columns3]]
     }, 
-    table_name: schema1.table1
+    table_name: schema1.table1,
+    sql: SELECT column1, column2 FROM schema1.other_table WHERE column3 IS NOT NULL;
   }, 
 }
 ```
