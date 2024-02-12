@@ -161,7 +161,7 @@ def produce_json(
         else:
             cols = base_table_noconn_dict.get(t, [])
         for i in cols:
-            base_table_dict[t]["columns"][i] = [""]
+            base_table_dict[t]["columns"][i] = [[""], [""]]
         base_table_dict[t]["table_name"] = str(t)
         base_table_dict[t]["sql"] = "this is a base table"
     base_table_dict.update(output_dict)
@@ -180,14 +180,16 @@ def _guess_base_table(output_dict: Optional[dict] = None) -> dict:
     """
     base_table_noconn_dict = {}
     for key, val in output_dict.items():
-        for col_val in val["columns"].values():
+        temp_v = list(val['columns'].values())
+        temp_v = [i[0] + i[1] for i in temp_v]
+        for col_val in temp_v:
             for t in col_val:
                 idx = t.rfind(".")
                 if t[:idx] in base_table_noconn_dict.keys():
-                    if t[idx + 1 :] not in base_table_noconn_dict[t[:idx]]:
-                        base_table_noconn_dict[t[:idx]].append(t[idx + 1 :])
+                    if t[idx + 1:] not in base_table_noconn_dict[t[:idx]]:
+                        base_table_noconn_dict[t[:idx]].append(t[idx + 1:])
                 else:
-                    base_table_noconn_dict[t[:idx]] = [t[idx + 1 :]]
+                    base_table_noconn_dict[t[:idx]] = [t[idx + 1:]]
     return base_table_noconn_dict
 
 
