@@ -41,7 +41,9 @@ class LineageXNoConn:
         self.target_schema = target_schema
         search_path_schema = [x.strip() for x in search_path_schema.split(",")]
         search_path_schema.append(target_schema)
-        self.sql_files_dict = SqlToDict(sql, search_path_schema).sql_files_dict
+        s2d = SqlToDict(sql, search_path_schema)
+        self.sql_files_dict = s2d.sql_files_dict
+        self.org_sql_files_dict = s2d.org_sql_files_dict
         self.dialect = dialect
         self.input_table_dict = {}
         self.finished_list = []
@@ -91,6 +93,8 @@ class LineageXNoConn:
         #         "table_name": self.target_schema + "." + name,
         #     }
         # else:
+        # if name in self.org_sql_files_dict.keys():
+        #     sql = self.org_sql_files_dict[name]
         self.output_dict[name] = {
             "tables": col_lineage.table_list,
             "columns": col_lineage.column_dict,
