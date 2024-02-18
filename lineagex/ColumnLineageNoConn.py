@@ -289,7 +289,8 @@ class ColumnLineageNoConn:
                                 target_dict=temp_dict,
                             )
                             for _, value in temp_dict.items():
-                                temp_sub_cols.extend(value)
+                                temp_sub_cols.extend(value[0])
+                                temp_sub_cols.extend(value[1])
                         else:
                             cols = self._find_alias_col(
                                     col_sql=col.sql(), temp_table=temp_sub_table, ref=True
@@ -635,6 +636,8 @@ class ColumnLineageNoConn:
                 # if cond in compare_cond and (type(cond_sql.parent) == exp.Alias or type(cond_sql.parent.parent == exp.Alias)):
                 #     continue
                 for cond_col in cond_sql.find_all(exp.Column):
+                    if cond_col.dump()['args']['this']['args']['quoted'] is True:
+                        continue
                     cols = self._find_alias_col(
                             col_sql=cond_col.sql(), temp_table=used_tables, ref=True
                         )

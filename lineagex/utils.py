@@ -216,7 +216,9 @@ def _produce_html(output_json: Optional[dict] = "") -> None:
           <div id="main"></div>
         <script type="text/javascript" src="vendor.js"></script><script type="text/javascript" src="app.js"></script></body>
         </html>""".format(
-                json.dumps(output_json)
+                json.dumps(output_json).replace("<", "\\u003c")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029").replace("\u0022", "\\u0022")
             )
         )
 
