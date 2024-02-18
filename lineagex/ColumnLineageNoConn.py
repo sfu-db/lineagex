@@ -746,7 +746,7 @@ class ColumnLineageNoConn:
                                         )
                             target_dict[s] = [cols[0], list(set(list(self.all_used_col) + cols[1]))]
                     else:
-                        target_dict[t_name + ".*"] = sorted(self.all_used_col)
+                        target_dict[t_name + ".*"] = [[t_name + ".*"], list(self.all_used_col)]
                 else:
                     ref_star_cols = []
                     if t_name in self.input_table_dict.keys():
@@ -796,7 +796,7 @@ class ColumnLineageNoConn:
                                         )
                                 target_dict[s] = [cols[0], list(set(list(self.all_used_col) + cols[1]))]
                         else:
-                            target_dict[t_name + ".*"] = list(self.all_used_col)
+                            target_dict[t_name + ".*"] = [[t_name + ".*"], list(self.all_used_col)]
                 else:
                     # only star but it is an aggregation
                     for t_name in used_tables:
@@ -809,9 +809,9 @@ class ColumnLineageNoConn:
                                     col_sql=t_name + "." + s, temp_table=used_tables, ref=True
                                 )
                                 temp_col = temp_col + cols[0] + cols[1]
-                            target_dict[col_name] = list(
+                            target_dict[col_name] = [[""], list(
                                 self.all_used_col.union(set(temp_col))
-                            )
+                            )]
                         elif t_name in self.cte_dict.keys():
                             temp_col = []
                             for s in self.cte_dict[t_name]:
@@ -819,13 +819,13 @@ class ColumnLineageNoConn:
                                     col_sql=t_name + "." + s, temp_table=used_tables, ref=True
                                 )
                                 temp_col = temp_col + cols[0] + cols[1]
-                            target_dict[col_name] = list(
+                            target_dict[col_name] = [[""], list(
                                 self.all_used_col.union(set(temp_col))
-                            )
+                            )]
                         else:
-                            target_dict[col_name] = list(self.all_used_col) + [
+                            target_dict[col_name] = [[""], list(self.all_used_col) + [
                                 t_name + ".*"
-                            ]
+                            ]]
         return target_dict
 
 
