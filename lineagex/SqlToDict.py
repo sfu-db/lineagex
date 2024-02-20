@@ -56,6 +56,7 @@ class SqlToDict:
             if key.startswith("."):
                 self.sql_files_dict[key[1:]] = value
                 del self.sql_files_dict[key]
+        #print(self.sql_files_dict)
 
     def _preprocess_sql(
         self, new_sql: Optional[str] = "", file: Optional[str] = "", org_sql: Optional[str] = ""
@@ -110,22 +111,42 @@ class SqlToDict:
             "CREATE VIEW IF NOT EXISTS", ret_sql, flags=re.IGNORECASE
         ) or re.search("CREATE TABLE IF NOT EXISTS", ret_sql, flags=re.IGNORECASE):
             if ret_sql.upper().find("SELECT ") != -1:
-                temp = ret_sql.split(" ")
-                ret_sql = ret_sql[ret_sql.index(temp[7]) :]
-                if temp[5] in self.sql_files_dict.keys():
-                    print("WARNING: duplicate script detected for {}".format(temp[5]))
-                self.sql_files_dict[temp[5]] = ret_sql
-                self.org_sql_files_dict[temp[5]] = org_sql
+                if bool(re.match('CREATE VIEW IF NOT EXISTS', ret_sql, re.I)) or bool(re.match('CREATE TABLE IF NOT EXISTS', ret_sql, re.I)):
+                    temp = ret_sql.split(" ")
+                    ret_sql = ret_sql[ret_sql.index(temp[7]):]
+                else:
+                    c_idx = ret_sql.upper().find("CREATE VIEW IF NOT EXISTS")
+                    if c_idx == -1:
+                        c_idx = ret_sql.upper().find("CREATE TABLE IF NOT EXISTS")
+                    sub = ret_sql[c_idx:]
+                    temp = sub.split(" ")
+                    ret_sql = ret_sql[:c_idx] + " " + sub[sub.index(temp[7]):]
+                name = temp[5]
+                if name in self.sql_files_dict.keys():
+                    print("WARNING: duplicate script detected for {}".format(name))
+                self.sql_files_dict[name] = ret_sql
+                self.org_sql_files_dict[name] = org_sql
+
         elif re.search("CREATE VIEW", ret_sql, flags=re.IGNORECASE) or re.search(
             "CREATE TABLE", ret_sql, flags=re.IGNORECASE
         ):
             if ret_sql.upper().find("SELECT ") != -1:
-                temp = ret_sql.split(" ")
-                ret_sql = ret_sql[ret_sql.index(temp[4]) :]
-                if temp[2] in self.sql_files_dict.keys():
-                    print("WARNING: duplicate script detected for {}".format(temp[2]))
-                self.sql_files_dict[temp[2]] = ret_sql
-                self.org_sql_files_dict[temp[2]] = org_sql
+                if bool(re.match('CREATE VIEW', ret_sql, re.I)) or bool(re.match('CREATE TABLE', ret_sql, re.I)):
+                    temp = ret_sql.split(" ")
+                    ret_sql = ret_sql[ret_sql.index(temp[4]):]
+                else:
+                    c_idx = ret_sql.upper().find("CREATE VIEW")
+                    if c_idx == -1:
+                        c_idx = ret_sql.upper().find("CREATE TABLE")
+                    sub = ret_sql[c_idx:]
+                    temp = sub.split(" ")
+                    ret_sql = ret_sql[:c_idx] + " " + sub[sub.index(temp[4]):]
+                name = temp[2]
+                if name in self.sql_files_dict.keys():
+                    print("WARNING: duplicate script detected for {}".format(name))
+                self.sql_files_dict[name] = ret_sql
+                self.org_sql_files_dict[name] = org_sql
+
         # adjust to INSERT/DELETE/SELECT/
         elif ret_sql.find("INSERT INTO") != -1:
             # find the current name in the insertion dict and how many times it has been inserted

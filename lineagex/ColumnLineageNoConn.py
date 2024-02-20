@@ -82,6 +82,7 @@ class ColumnLineageNoConn:
             with_sql.pop()
         self._sub_shared_col_conds(sql_ast=self.sql_ast)
         self._run_lineage(self.sql_ast, False)
+        #print(self.cte_table_dict)
         #print(self.cte_dict)
         # print(self.column_dict)
         # print(self.cte_table_dict)
@@ -346,11 +347,12 @@ class ColumnLineageNoConn:
             if len(temp_cte_table) == 0:
                 temp_cte_table = potential_cte_sub_table
             cte_name = cte.find(exp.TableAlias).alias_or_name
-            if sub_name in temp_cte_table:
-                temp_cte_table.remove(sub_name)
+            cte_tables = temp_cte_table.copy()
+            if sub_name in cte_tables:
+                cte_tables.remove(sub_name)
             self.cte_table_dict[cte_name] = list(
                 set(
-                    self._find_all_tables(temp_table_list=temp_cte_table)
+                    self._find_all_tables(temp_table_list=cte_tables)
                     + all_cte_sub_table
                 )
             )
