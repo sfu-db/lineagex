@@ -247,7 +247,8 @@ class ColumnLineageNoConn:
                 cols = self._find_alias_col(
                     col_sql=col.sql(), temp_table=main_tables, ref=True
                 )
-                # print(col, cols[0], cols[1])
+                if col.dump()["args"]["this"]["args"]["quoted"] is True:
+                    continue
                 self.all_used_col.extend(cols[0] + cols[1])
             return
 
@@ -696,7 +697,7 @@ class ColumnLineageNoConn:
                     temp_c = []
                     for k, v in dummy_dict.items():
                         temp_c.extend(list(itertools.chain.from_iterable(v)))
-                    self.all_used_col.extend(list(set(temp_c)))
+                    list(self.all_used_col).extend(list(set(temp_c)))
                     used_tables = self._find_all_tables(
                         temp_table_list=self._resolve_table(part_ast=temp_ast)
                     )
@@ -706,7 +707,7 @@ class ColumnLineageNoConn:
                     cols = self._find_alias_col(
                         col_sql=cond_col.sql(), temp_table=used_tables, ref=True
                     )
-                    self.all_used_col.extend(cols[0] + cols[1])
+                    list(self.all_used_col).extend(cols[0] + cols[1])
 
     def _find_alias_col(
         self,
