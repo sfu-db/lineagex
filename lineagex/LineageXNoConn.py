@@ -15,7 +15,7 @@ def parse_one_sql(sql: Optional[str] = "") -> expressions:
     :param sql: the input sql
     :return: the parsed sql AST
     """
-    dialects = ["postgres", "oracle", "mysql", ""]
+    dialects = ["postgres", "oracle", "mysql", "sqlite", ""]
     parsed_sql = None
     for dialect in dialects:
         try:
@@ -41,7 +41,7 @@ class LineageXNoConn:
         self.target_schema = target_schema
         search_path_schema = [x.strip() for x in search_path_schema.split(",")]
         search_path_schema.append(target_schema)
-        s2d = SqlToDict(sql, search_path_schema)
+        s2d = SqlToDict(path=sql, schema_list=search_path_schema, dialect=dialect)
         self.sql_files_dict = s2d.sql_files_dict
         self.org_sql_files_dict = s2d.org_sql_files_dict
         self.dialect = dialect

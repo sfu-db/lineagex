@@ -9,10 +9,11 @@ rem_regex = re.compile(r"[^a-zA-Z0-9_.]")
 
 class SqlToDict:
     def __init__(
-        self, path: Optional[Union[List, str]] = "", schema_list: Optional[List] = None
+        self, path: Optional[Union[List, str]] = "", schema_list: Optional[List] = None, dialect: Optional[str] = "postgres"
     ) -> None:
         self.path = path
         self.schema_list = schema_list
+        self.dialect = dialect
         self.sql_files = []
         self.sql_files_dict = {}
         self.org_sql_files_dict = {}
@@ -33,7 +34,7 @@ class SqlToDict:
         else:
             self.sql_files = get_files(path=self.path)
             for f in self.sql_files:
-                org_sql = open(f, mode="r", encoding="utf-8-sig").read()
+                org_sql = open(f, mode="r", encoding="latin-1").read()
                 new_sql = remove_comments(str1=org_sql)
                 org_sql_split = list(filter(None, new_sql.split(";")))
                 # pop DROP IF EXISTS
@@ -67,7 +68,10 @@ class SqlToDict:
         :return: None
         """
         ret_sql = remove_comments(str1=new_sql)
-        ret_sql = ret_sql.replace("`", "")
+        if self.dialect == "sqlite":
+            ret_sql = ret_sql.replace("`", '"')
+        elif self.dialect == "postgres":
+            ret_sql = ret_sql.replace("`", '')
         # remove any database names in the query
         if self.schema_list:
             for i in self.schema_list:

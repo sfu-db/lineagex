@@ -17,7 +17,19 @@ def remove_comments(str1: Optional[str] = "") -> str:
     # remove whole line -- and # comments
     lines = [line for line in q.splitlines() if not re.match("^\s*(--|#)", line)]
     # remove trailing -- and # comments
-    q = " ".join([re.split("--|#", line)[0] for line in lines])
+    # pattern = r"(?:--|#)(?!.*(['""])[^'""]*\1)[^'\n\r]*"
+    # q = " ".join([re.sub(pattern, "", line) for line in lines])
+    q = " ".join(
+        [
+            re.split("--|#", line)[0]
+            if line.find("'#") == -1
+            and line.find('"#') == -1
+            and line.find("'--") == -1
+            and line.find('"--') == -1
+            else line
+            for line in lines
+        ]
+    )
     # replace all spaces around commas
     q = re.sub(r"\s*,\s*", ",", q)
     # replace all multiple spaces to one space
@@ -167,7 +179,7 @@ def produce_json(
     base_table_dict.update(output_dict)
     with open("output.json", "w") as outfile:
         json.dump(base_table_dict, outfile)
-    #_produce_html(output_json=str(base_table_dict).replace("'", '"'))
+    # _produce_html(output_json=str(base_table_dict).replace("'", '"'))
     _produce_html(output_json=base_table_dict)
     return base_table_dict
 
@@ -180,16 +192,16 @@ def _guess_base_table(output_dict: Optional[dict] = None) -> dict:
     """
     base_table_noconn_dict = {}
     for key, val in output_dict.items():
-        temp_v = list(val['columns'].values())
+        temp_v = list(val["columns"].values())
         temp_v = [i[0] + i[1] for i in temp_v]
         for col_val in temp_v:
             for t in col_val:
                 idx = t.rfind(".")
                 if t[:idx] in base_table_noconn_dict.keys():
-                    if t[idx + 1:] not in base_table_noconn_dict[t[:idx]]:
-                        base_table_noconn_dict[t[:idx]].append(t[idx + 1:])
+                    if t[idx + 1 :] not in base_table_noconn_dict[t[:idx]]:
+                        base_table_noconn_dict[t[:idx]].append(t[idx + 1 :])
                 else:
-                    base_table_noconn_dict[t[:idx]] = [t[idx + 1:]]
+                    base_table_noconn_dict[t[:idx]] = [t[idx + 1 :]]
     return base_table_noconn_dict
 
 
@@ -216,9 +228,11 @@ def _produce_html(output_json: Optional[dict] = "") -> None:
           <div id="main"></div>
         <script type="text/javascript" src="vendor.js"></script><script type="text/javascript" src="app.js"></script></body>
         </html>""".format(
-                json.dumps(output_json).replace("<", "\\u003c")
-        .replace("\u2028", "\\u2028")
-        .replace("\u2029", "\\u2029").replace("\u0022", "\\u0022")
+                json.dumps(output_json)
+                .replace("<", "\\u003c")
+                .replace("\u2028", "\\u2028")
+                .replace("\u2029", "\\u2029")
+                .replace("\u0022", "\\u0022")
             )
         )
 

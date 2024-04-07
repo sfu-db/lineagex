@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS .first_day_lab; CREATE TABLE .first_day_lab AS 
+DROP TABLE IF EXISTS first_day_lab; CREATE TABLE first_day_lab AS
 WITH cbc AS
 (
     SELECT
@@ -83,7 +83,7 @@ WITH cbc AS
 (
     SELECT
     ie.stay_id
-    
+
     , MIN(alt) AS alt_min, MAX(alt) AS alt_max
     , MIN(alp) AS alp_min, MAX(alp) AS alp_max
     , MIN(ast) AS ast_min, MAX(ast) AS ast_max

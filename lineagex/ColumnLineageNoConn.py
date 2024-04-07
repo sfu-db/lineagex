@@ -1,5 +1,6 @@
 from typing import List, Optional, Tuple
 
+import itertools
 from sqlglot import exp, parse_one
 from sqlglot import expressions
 
@@ -43,7 +44,7 @@ def parse_one_sql(sql: Optional[str] = "") -> expressions:
     :param sql: the input sql
     :return: the parsed sql AST
     """
-    dialects = ["postgres", "oracle", "mysql", ""]
+    dialects = ["postgres", "oracle", "mysql", "sqlite", ""]
     parsed_sql = None
     for dialect in dialects:
         try:
@@ -69,7 +70,7 @@ class ColumnLineageNoConn:
         self.cte_dict = {}
         self.unnest_dict = {}
         self.input_table_dict = input_table_dict
-        #self.sql_ast = parse_one(sql, read=dialect)
+        # self.sql_ast = parse_one(sql, read=dialect)
         self.sql_ast = parse_one_sql(sql=sql)
         self.all_used_col = []
         self.table_list = []
@@ -82,8 +83,8 @@ class ColumnLineageNoConn:
             with_sql.pop()
         self._sub_shared_col_conds(sql_ast=self.sql_ast)
         self._run_lineage(self.sql_ast, False)
-        #print(self.cte_table_dict)
-        #print(self.cte_dict)
+        # print(self.cte_dict)
+        # print(self.cte_dict['ur_stg']['uo_tm_6hr'])
         # print(self.column_dict)
         # print(self.cte_table_dict)
 
@@ -106,14 +107,17 @@ class ColumnLineageNoConn:
             main_tables = self._resolve_table(part_ast=sql_ast)
             self.table_list = self._find_all_tables(temp_table_list=main_tables)
             self.table_list.extend(self.all_subquery_table)
+            self.table_list = [
+                x for x in self.table_list if x not in list(self.cte_dict.keys())
+            ]
             self._shared_col_conds(part_ast=sql_ast, used_tables=main_tables)
             self.all_used_col.extend(self.sub_cols)
-            self.all_used_col = set(self.all_used_col)
+            self.all_used_col = list(set(self.all_used_col))
             if sql_ast.find(exp.Select):
                 self.column_dict = self._resolve_proj_handler(
                     sql_ast=sql_ast,
                     target_dict=self.column_dict,
-                    source_table=main_tables,
+                    source_table=self._remove_bad_table(sql_ast=sql_ast),
                 )
                 # for projection in sql_ast.find(exp.Select).expressions:
                 #     col_name = projection.alias_or_name
@@ -139,16 +143,20 @@ class ColumnLineageNoConn:
                 for i in v[0] + v[1]:
                     if len(i.split(".")) > 1:
                         temp_v[i.split(".")[-1].lower()] = i
+                v_list = v[0].copy()
                 for i in v[0]:
                     if i.lower() in temp_v.keys():
-                        v[0].remove(i)
+                        v_list = [x for x in v_list if x != i]
                         if temp_v[i.lower()] not in v[0]:
-                            v[0].append(temp_v[i.lower()])
+                            v_list.append(temp_v[i.lower()])
+                v[0] = v_list
+                v_list = v[1].copy()
                 for i in v[1]:
                     if i.lower() in temp_v.keys():
-                        v[1].remove(i)
+                        v_list = [x for x in v_list if x != i]
                         if temp_v[i.lower()] not in v[1]:
-                            v[1].append(temp_v[i.lower()])
+                            v_list.append(temp_v[i.lower()])
+                v[1] = v_list
                 if "" in v[0]:
                     v[0].remove("")
                 if "" in v[1]:
@@ -156,11 +164,25 @@ class ColumnLineageNoConn:
         else:
             temp_sub_cols = []
             for col in sql_ast.find_all(exp.Column):
-                cols = self._find_alias_col(col_sql=col.sql(), temp_table=self.sub_tables, ref=True)
-                temp_sub_cols.extend(
-                    cols[0] + cols[1]
+                cols = self._find_alias_col(
+                    col_sql=col.sql(), temp_table=self.sub_tables, ref=True
                 )
+                temp_sub_cols.extend(cols[0] + cols[1])
             self.sub_cols.extend(temp_sub_cols)
+
+    def _remove_bad_table(self, sql_ast: expressions = None) -> list:
+        """
+        Keep only tables that are eligeble to infer table names for columns
+        :param sql_ast: the ast tree for the sql
+        :return: the list of eligeble tables
+        """
+        temp_ast = sql_ast.copy()
+        for cond in shared_conditions:
+            for cond_sql in temp_ast.find_all(cond):
+                cond_sql.pop()
+        temp_table = self._resolve_table(part_ast=temp_ast)
+        # return self._find_all_tables(temp_table_list=temp_table)
+        return temp_table
 
     def _resolve_proj_handler(
         self,
@@ -207,7 +229,7 @@ class ColumnLineageNoConn:
                         v[1].remove(col_name)
                         target_dict[k] = [v[0], list(set(v[1] + new_col))]
                     self.all_used_col.remove(col_name)
-                    self.all_used_col = set(self.all_used_col.union(set(new_col)))
+                    self.all_used_col = set(set(self.all_used_col).union(set(new_col)))
         return target_dict
 
     def _handle_union(self, sql_ast: expressions = None) -> None:
@@ -222,11 +244,11 @@ class ColumnLineageNoConn:
             main_tables = self._resolve_table(part_ast=sql_ast)
             self._shared_col_conds(part_ast=sql_ast, used_tables=main_tables)
             for col in sql_ast.find_all(exp.Column):
-                cols = self._find_alias_col(col_sql=col.sql(), temp_table=main_tables, ref=True)
-                #print(col, cols[0], cols[1])
-                self.all_used_col.extend(
-                    cols[0] + cols[1]
+                cols = self._find_alias_col(
+                    col_sql=col.sql(), temp_table=main_tables, ref=True
                 )
+                # print(col, cols[0], cols[1])
+                self.all_used_col.extend(cols[0] + cols[1])
             return
 
     def _sub_shared_col_conds(self, sql_ast: expressions = None) -> None:
@@ -247,7 +269,7 @@ class ColumnLineageNoConn:
                         temp_sub_dict = self._resolve_proj_handler(
                             sql_ast=sub_ast,
                             target_dict=temp_sub_dict,
-                            source_table=self.sub_tables,
+                            source_table=self._remove_bad_table(sql_ast=sub_ast),
                         )
                         # for projection in sub_ast.find(exp.Select).expressions:
                         #     col_name = projection.alias_or_name
@@ -257,9 +279,13 @@ class ColumnLineageNoConn:
                         #         target_dict=temp_sub_dict,
                         #         source_table=self.sub_tables,
                         #     )
-                        sub_name = sub_ast.find(exp.TableAlias).alias_or_name
+                        if sub_ast.find(exp.TableAlias).depth - sub_ast.depth > 1:
+                            sub_name = "no_name_subquery"
+                            sub_ast.replace(exp.Table(this=sub_name))
+                        else:
+                            sub_name = sub_ast.find(exp.TableAlias).alias_or_name
+                            sub_ast.replace(exp.Table(this=sub_name))
                         self.cte_dict[sub_name] = temp_sub_dict
-                        sub_ast.replace(exp.Table(this=sub_name))
                     self._run_lineage(sub_ast, True)
                     sub_ast.pop()
 
@@ -294,11 +320,9 @@ class ColumnLineageNoConn:
                                 temp_sub_cols.extend(value[1])
                         else:
                             cols = self._find_alias_col(
-                                    col_sql=col.sql(), temp_table=temp_sub_table, ref=True
-                                )
-                            temp_sub_cols.extend(
-                                cols[0] + cols[1]
+                                col_sql=col.sql(), temp_table=temp_sub_table, ref=True
                             )
+                            temp_sub_cols.extend(cols[0] + cols[1])
                     temp_sub_cols = list(set(temp_sub_cols))
                     all_cte_sub_table.extend(
                         self._find_all_tables(temp_table_list=temp_sub_table)
@@ -314,7 +338,7 @@ class ColumnLineageNoConn:
                         temp_sub_dict = self._resolve_proj_handler(
                             sql_ast=sub_ast,
                             target_dict=temp_sub_dict,
-                            source_table=temp_sub_table,
+                            source_table=self._remove_bad_table(sql_ast=sub_ast),
                         )
                         # for projection in sub_ast.find(exp.Select).expressions:
                         #     col_name = projection.alias_or_name
@@ -339,7 +363,7 @@ class ColumnLineageNoConn:
                 all_cte_sub_table,
                 all_cte_sub_cols,
                 potential_cte_sub_table,
-                sub_name
+                sub_name,
             ) = self._sub_shared_col_conds_cte(sql_ast=cte)
             self.all_used_col = []
             temp_cte_dict = {}
@@ -372,7 +396,9 @@ class ColumnLineageNoConn:
             self.all_used_col = set(self.all_used_col)
             # Resolving the projection
             temp_cte_dict = self._resolve_proj_handler(
-                sql_ast=cte, target_dict=temp_cte_dict, source_table=temp_cte_table
+                sql_ast=cte,
+                target_dict=temp_cte_dict,
+                source_table=self._remove_bad_table(sql_ast=cte),
             )
             # for projection in cte.find(exp.Select).expressions:
             #     col_name = projection.alias_or_name
@@ -460,10 +486,15 @@ class ColumnLineageNoConn:
                 temp_col.append(p.sql())
             ref_temp_col = []
             for p in temp_col:
-                cols = self._find_alias_col(col_sql=p, temp_table=source_table, ref=False)
+                cols = self._find_alias_col(
+                    col_sql=p, temp_table=source_table, ref=False
+                )
                 proj_columns.extend(cols[0])
                 ref_temp_col.extend(cols[1])
-            target_dict[col_name] = [list(set(proj_columns)), list(set(list(self.all_used_col) + ref_temp_col))]
+            target_dict[col_name] = [
+                list(set(proj_columns)),
+                list(set(list(self.all_used_col) + ref_temp_col)),
+            ]
         else:
             proj_columns = []
             # Resolve only *
@@ -474,17 +505,18 @@ class ColumnLineageNoConn:
                         # every column from there will be a column with that name
                         for per_star_col in star_cols:
                             cols = self._find_alias_col(
-                                            col_sql=per_star_col,
-                                            temp_table=source_table,
-                                            ref=False
-                                        )
-                            target_dict[per_star_col] = [cols[0], list(set(list(self.all_used_col) + cols[1]))]
+                                col_sql=per_star_col, temp_table=source_table, ref=False
+                            )
+                            target_dict[per_star_col] = [
+                                cols[0],
+                                list(set(list(self.all_used_col) + cols[1])),
+                            ]
                     elif t_name in self.cte_dict.keys():
                         star_cols = list(self.cte_dict[t_name].keys())
                         for per_star_col in star_cols:
-                            target_dict[per_star_col] = [list(
-                                    set(self.cte_dict[t_name][per_star_col])
-                                ), list(self.all_used_col)
+                            target_dict[per_star_col] = [
+                                list(set(self.cte_dict[t_name][per_star_col])),
+                                list(self.all_used_col),
                             ]
             # Resolve projections that have many columns, some of which could be *
             ref_proj_cols = []
@@ -501,28 +533,35 @@ class ColumnLineageNoConn:
                         # every column from there will be a column with that name
                         for per_star_col in star_cols:
                             cols = self._find_alias_col(
-                                            col_sql=per_star_col,
-                                            temp_table=source_table,
-                                            ref=False
-                                        )
-                            target_dict[per_star_col] = [cols[0], list(set(list(self.all_used_col) + cols[1]))]
+                                col_sql=per_star_col, temp_table=source_table, ref=False
+                            )
+                            target_dict[per_star_col] = [
+                                cols[0],
+                                list(set(list(self.all_used_col) + cols[1])),
+                            ]
                     # If from another CTE, get all columns from there
                     elif t_name in self.cte_dict.keys():
                         star_cols = list(self.cte_dict[t_name].keys())
                         for per_star_col in star_cols:
-                            target_dict[per_star_col] = [list(
-                                    set(self.cte_dict[t_name][per_star_col])
-                                ), list(self.all_used_col)]
+                            target_dict[per_star_col] = [
+                                list(set(self.cte_dict[t_name][per_star_col])),
+                                list(self.all_used_col),
+                            ]
                     # If from an unknown table, leave it with a STAR as temporary name
                     else:
                         target_dict[p.sql()] = [p.sql()] + (list(self.all_used_col))
                 else:
                     # one projection can have many columns, append first
-                    cols = self._find_alias_col(col_sql=p.sql(), temp_table=source_table, ref=False)
+                    cols = self._find_alias_col(
+                        col_sql=p.sql(), temp_table=source_table, ref=False
+                    )
                     proj_columns.extend(cols[0])
                     ref_proj_cols.extend(cols[1])
             if proj_columns:
-                target_dict[col_name] = [list(set(proj_columns)), list(set(list(self.all_used_col) + ref_proj_cols))]
+                target_dict[col_name] = [
+                    list(set(proj_columns)),
+                    list(set(list(self.all_used_col) + ref_proj_cols)),
+                ]
             # If the column only uses literals, like MAX(1)
             if not projection.find(exp.Column):
                 target_dict[col_name] = [[""], list(self.all_used_col)]
@@ -551,7 +590,7 @@ class ColumnLineageNoConn:
                             cols = self._find_alias_col(
                                 col_sql=temp_col_name[1] + "." + temp_col_name[0],
                                 temp_table=[temp_col_name[1]],
-                                ref=True
+                                ref=True,
                             )
                             self.all_used_col.extend(cols[0] + cols[1])
                             dep_cols = list(set(cols[0] + cols[1]))
@@ -573,6 +612,8 @@ class ColumnLineageNoConn:
                                 ] = [dep_cols, []]
                         temp_table_list.extend(dep_tables)
                 for table in table_sql.find_all(exp.Table):
+                    if table.name == "no_name_subquery":
+                        continue
                     temp_table_list = self._find_table(
                         table=table, temp_table_list=temp_table_list
                     )
@@ -637,18 +678,41 @@ class ColumnLineageNoConn:
             for cond_sql in temp_ast.find_all(cond):
                 # if cond in compare_cond and (type(cond_sql.parent) == exp.Alias or type(cond_sql.parent.parent == exp.Alias)):
                 #     continue
+                ## In the case that subquery is not realized at start(mostly when sqlglot gives inconsistent nodes)
+                if cond_sql.find(exp.Select):
+                    select_ast = cond_sql.find(exp.Select).pop()
+                    select_table = temp_table_list = self._resolve_table(
+                        part_ast=select_ast
+                    )
+                    self._shared_col_conds(
+                        part_ast=select_ast, used_tables=select_table
+                    )
+                    dummy_dict = {}
+                    dummy_dict = self._resolve_proj_handler(
+                        sql_ast=select_ast,
+                        target_dict=dummy_dict,
+                        source_table=select_table,
+                    )
+                    temp_c = []
+                    for k, v in dummy_dict.items():
+                        temp_c.extend(list(itertools.chain.from_iterable(v)))
+                    self.all_used_col.extend(list(set(temp_c)))
+                    used_tables = self._find_all_tables(
+                        temp_table_list=self._resolve_table(part_ast=temp_ast)
+                    )
                 for cond_col in cond_sql.find_all(exp.Column):
-                    if cond_col.dump()['args']['this']['args']['quoted'] is True:
+                    if cond_col.dump()["args"]["this"]["args"]["quoted"] is True:
                         continue
                     cols = self._find_alias_col(
-                            col_sql=cond_col.sql(), temp_table=used_tables, ref=True
-                        )
-                    self.all_used_col.extend(
-                        cols[0] + cols[1]
+                        col_sql=cond_col.sql(), temp_table=used_tables, ref=True
                     )
+                    self.all_used_col.extend(cols[0] + cols[1])
 
     def _find_alias_col(
-        self, col_sql: Optional[str] = "", temp_table: Optional[List] = None, ref: Optional[bool] = False
+        self,
+        col_sql: Optional[str] = "",
+        temp_table: Optional[List] = None,
+        ref: Optional[bool] = False,
     ) -> List[list]:
         """
         Find the columns and its alias and dependencies if it is from a cte
@@ -737,38 +801,54 @@ class ColumnLineageNoConn:
                     if t_name in self.input_table_dict.keys():
                         for s in self.input_table_dict[t_name]:
                             cols = self._find_alias_col(
-                                            col_sql=t_name + "." + s,
-                                            temp_table=used_tables,
-                                            ref=False
-                                        )
-                            target_dict[s] = [cols[0], list(set(list(self.all_used_col) + cols[1]))]
+                                col_sql=t_name + "." + s,
+                                temp_table=used_tables,
+                                ref=False,
+                            )
+                            target_dict[s] = [
+                                cols[0],
+                                list(set(list(self.all_used_col) + cols[1])),
+                            ]
                     elif t_name in self.cte_dict.keys():
                         for s in list(self.cte_dict[t_name].keys()):
                             cols = self._find_alias_col(
-                                            col_sql=t_name + "." + s,
-                                            temp_table=used_tables,
-                                            ref=False
-                                        )
-                            target_dict[s] = [cols[0], list(set(list(self.all_used_col) + cols[1]))]
+                                col_sql=t_name + "." + s,
+                                temp_table=used_tables,
+                                ref=False,
+                            )
+                            target_dict[s] = [
+                                cols[0],
+                                list(set(list(self.all_used_col) + cols[1])),
+                            ]
                     else:
-                        target_dict[t_name + ".*"] = [[t_name + ".*"], list(self.all_used_col)]
+                        target_dict[t_name + ".*"] = [
+                            [t_name + ".*"],
+                            list(self.all_used_col),
+                        ]
                 else:
                     ref_star_cols = []
                     if t_name in self.input_table_dict.keys():
                         star_cols = []
                         for s in self.input_table_dict[t_name]:
-                            cols = self._find_alias_col(col_sql=s, temp_table=used_tables, ref=False)
+                            cols = self._find_alias_col(
+                                col_sql=s, temp_table=used_tables, ref=False
+                            )
                             star_cols.extend(cols[0])
                             ref_star_cols.extend(cols[1])
                     elif t_name in self.cte_dict.keys():
                         star_cols = []
                         for s in list(self.cte_dict[t_name].keys()):
-                            cols = self._find_alias_col(col_sql=s, temp_table=used_tables, ref=False)
+                            cols = self._find_alias_col(
+                                col_sql=s, temp_table=used_tables, ref=False
+                            )
                             star_cols.extend(cols[0])
                             ref_star_cols.extend(cols[1])
                     else:
                         star_cols = [t_name + ".*"]
-                    target_dict[col_name] = [list(set(star_cols)), list(set(list(self.all_used_col) + ref_star_cols))]
+                    target_dict[col_name] = [
+                        list(set(star_cols)),
+                        list(set(list(self.all_used_col) + ref_star_cols)),
+                    ]
             # only star
             else:
                 # only star, so to get all the columns from the used tables
@@ -787,21 +867,30 @@ class ColumnLineageNoConn:
                         if t_name in self.input_table_dict.keys():
                             for s in self.input_table_dict[t_name]:
                                 cols = self._find_alias_col(
-                                            col_sql=t_name + "." + s,
-                                            temp_table=used_tables,
-                                            ref=False
-                                        )
-                                target_dict[s] = [cols[0], list(set(list(self.all_used_col) + cols[1]))]
+                                    col_sql=t_name + "." + s,
+                                    temp_table=used_tables,
+                                    ref=False,
+                                )
+                                target_dict[s] = [
+                                    cols[0],
+                                    list(set(list(self.all_used_col) + cols[1])),
+                                ]
                         elif t_name in self.cte_dict.keys():
                             for s in list(self.cte_dict[t_name].keys()):
                                 cols = self._find_alias_col(
-                                            col_sql=t_name + "." + s,
-                                            temp_table=used_tables,
-                                            ref=False
-                                        )
-                                target_dict[s] = [cols[0], list(set(list(self.all_used_col) + cols[1]))]
+                                    col_sql=t_name + "." + s,
+                                    temp_table=used_tables,
+                                    ref=False,
+                                )
+                                target_dict[s] = [
+                                    cols[0],
+                                    list(set(list(self.all_used_col) + cols[1])),
+                                ]
                         else:
-                            target_dict[t_name + ".*"] = [[t_name + ".*"], list(self.all_used_col)]
+                            target_dict[t_name + ".*"] = [
+                                [t_name + ".*"],
+                                list(self.all_used_col),
+                            ]
                 else:
                     # only star but it is an aggregation
                     for t_name in used_tables:
@@ -811,26 +900,33 @@ class ColumnLineageNoConn:
                             temp_col = []
                             for s in self.input_table_dict[t_name]:
                                 cols = self._find_alias_col(
-                                    col_sql=t_name + "." + s, temp_table=used_tables, ref=True
+                                    col_sql=t_name + "." + s,
+                                    temp_table=used_tables,
+                                    ref=True,
                                 )
                                 temp_col = temp_col + cols[0] + cols[1]
-                            target_dict[col_name] = [[""], list(
-                                self.all_used_col.union(set(temp_col))
-                            )]
+                            target_dict[col_name] = [
+                                [""],
+                                list(self.all_used_col.union(set(temp_col))),
+                            ]
                         elif t_name in self.cte_dict.keys():
                             temp_col = []
                             for s in self.cte_dict[t_name]:
                                 cols = self._find_alias_col(
-                                    col_sql=t_name + "." + s, temp_table=used_tables, ref=True
+                                    col_sql=t_name + "." + s,
+                                    temp_table=used_tables,
+                                    ref=True,
                                 )
                                 temp_col = temp_col + cols[0] + cols[1]
-                            target_dict[col_name] = [[""], list(
-                                self.all_used_col.union(set(temp_col))
-                            )]
+                            target_dict[col_name] = [
+                                [""],
+                                list(set(self.all_used_col).union(set(temp_col))),
+                            ]
                         else:
-                            target_dict[col_name] = [[""], list(self.all_used_col) + [
-                                t_name + ".*"
-                            ]]
+                            target_dict[col_name] = [
+                                [""],
+                                list(self.all_used_col) + [t_name + ".*"],
+                            ]
         return target_dict
 
 
