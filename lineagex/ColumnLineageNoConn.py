@@ -288,12 +288,14 @@ class ColumnLineageNoConn:
                         #         target_dict=temp_sub_dict,
                         #         source_table=self.sub_tables,
                         #     )
-                        if sub_ast.find(exp.TableAlias).depth - sub_ast.depth > 1:
-                            sub_name = "no_name_subquery"
-                            sub_ast.replace(exp.Table(this=sub_name))
+                        if sub_ast.find(exp.TableAlias) is not None:
+                            if sub_ast.find(exp.TableAlias).depth - sub_ast.depth > 1:
+                                sub_name = "no_name_subquery"
+                            else:
+                                sub_name = sub_ast.find(exp.TableAlias).alias_or_name
                         else:
-                            sub_name = sub_ast.find(exp.TableAlias).alias_or_name
-                            sub_ast.replace(exp.Table(this=sub_name))
+                            sub_name = "no_name_subquery"
+                        sub_ast.replace(exp.Table(this=sub_name))
                         self.cte_dict[sub_name] = temp_sub_dict
                     self._run_lineage(sub_ast, True)
                     sub_ast.pop()
