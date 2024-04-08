@@ -77,13 +77,14 @@ class ColumnLineageNoConn:
         self.all_subquery_table = []
         self.sub_tables = []
         self.sub_cols = []
+        self.no_name_sub_flag = False
         self._run_cte_lineage()
         # Everything other than CTEs, and pop the CTE tree
         for with_sql in self.sql_ast.find_all(exp.With):
             with_sql.pop()
         self._sub_shared_col_conds(sql_ast=self.sql_ast)
         self._run_lineage(self.sql_ast, False)
-        # print(self.cte_dict)
+        #print(self.cte_dict)
         # print(self.cte_dict['ur_stg']['uo_tm_6hr'])
         # print(self.column_dict)
         # print(self.cte_table_dict)
@@ -98,6 +99,7 @@ class ColumnLineageNoConn:
         """
         if not subquery_flag:
             self.all_used_col = []
+            self.no_name_sub_flag = False
             if (
                 isinstance(sql_ast, exp.Union)
                 or isinstance(sql_ast, exp.Except)
@@ -164,6 +166,8 @@ class ColumnLineageNoConn:
         else:
             temp_sub_cols = []
             for col in sql_ast.find_all(exp.Column):
+                if col.dump()["args"]["this"]["args"]["quoted"] is True:
+                    continue
                 cols = self._find_alias_col(
                     col_sql=col.sql(), temp_table=self.sub_tables, ref=True
                 )
@@ -197,8 +201,11 @@ class ColumnLineageNoConn:
         :param source_table: the possible tables
         :return: the dict that is written
         """
+        n = 0
         for projection in sql_ast.find(exp.Select).expressions:
             col_name = projection.alias_or_name
+            if col_name == "":
+                col_name = "unnamed_column_{}".format(n)
             target_dict = self._resolve_proj(
                 projection=projection,
                 col_name=col_name,
@@ -265,6 +272,7 @@ class ColumnLineageNoConn:
                     self.all_subquery_table.extend(
                         self._find_all_tables(temp_table_list=self.sub_tables)
                     )
+                    self._shared_col_conds(part_ast=sub_ast, used_tables=self.sub_tables)
                     if type(sub_ast.parent) in from_join_exp:
                         temp_sub_dict = {}
                         temp_sub_dict = self._resolve_proj_handler(
@@ -367,6 +375,7 @@ class ColumnLineageNoConn:
                 sub_name,
             ) = self._sub_shared_col_conds_cte(sql_ast=cte)
             self.all_used_col = []
+            self.no_name_sub_flag = False
             temp_cte_dict = {}
             temp_cte_table = self._resolve_table(part_ast=cte)
             if len(temp_cte_table) == 0:
@@ -614,6 +623,7 @@ class ColumnLineageNoConn:
                         temp_table_list.extend(dep_tables)
                 for table in table_sql.find_all(exp.Table):
                     if table.name == "no_name_subquery":
+                        self.no_name_sub_flag = True
                         continue
                     temp_table_list = self._find_table(
                         table=table, temp_table_list=temp_table_list
@@ -797,8 +807,11 @@ class ColumnLineageNoConn:
         """
         if projection.find(exp.Star):
             # * with a table name
-            if projection.find(exp.Identifier):
-                t_name = projection.find(exp.Identifier).text("this")
+            if projection.find(exp.Identifier) or (self.no_name_sub_flag and "no_name_subquery" in list(self.cte_dict.keys())):
+                if self.no_name_sub_flag and "no_name_subquery" in list(self.cte_dict.keys()):
+                    t_name = "no_name_subquery"
+                else:
+                    t_name = projection.find(exp.Identifier).text("this")
                 # Resolve alias
                 if t_name in self.table_alias_dict.keys():
                     t_name = self.table_alias_dict[t_name]
