@@ -69,6 +69,7 @@ class SqlToDict:
         """
         ret_sql = remove_comments(str1=new_sql)
         if self.dialect == "sqlite":
+            ret_sql = ret_sql.replace('"', "'")
             ret_sql = ret_sql.replace("`", '"')
         elif self.dialect == "postgres":
             ret_sql = ret_sql.replace("`", '')

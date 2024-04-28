@@ -166,8 +166,8 @@ class ColumnLineageNoConn:
         else:
             temp_sub_cols = []
             for col in sql_ast.find_all(exp.Column):
-                if col.dump()["args"]["this"]["args"]["quoted"] is True:
-                    continue
+                # if col.dump()["args"]["this"]["args"]["quoted"] is True:
+                #     continue
                 cols = self._find_alias_col(
                     col_sql=col.sql(), temp_table=self.sub_tables, ref=True
                 )
@@ -254,8 +254,8 @@ class ColumnLineageNoConn:
                 cols = self._find_alias_col(
                     col_sql=col.sql(), temp_table=main_tables, ref=True
                 )
-                if col.dump()["args"]["this"]["args"]["quoted"] is True:
-                    continue
+                # if col.dump()["args"]["this"]["args"]["quoted"] is True:
+                #     continue
                 self.all_used_col.extend(cols[0] + cols[1])
             return
 
@@ -716,8 +716,8 @@ class ColumnLineageNoConn:
                         temp_table_list=self._resolve_table(part_ast=temp_ast)
                     )
                 for cond_col in cond_sql.find_all(exp.Column):
-                    if cond_col.dump()["args"]["this"]["args"]["quoted"] is True:
-                        continue
+                    #if cond_col.dump()["args"]["this"]["args"]["quoted"] is True:
+                    #    continue
                     cols = self._find_alias_col(
                         col_sql=cond_col.sql(), temp_table=used_tables, ref=True
                     )
