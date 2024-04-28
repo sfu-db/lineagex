@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "lineagex"
-version = "0.0.25"
+version = "0.0.26"
 description = "A column lineage tool"
 authors = ["zshandy <zshandy@gmail.com>"]
 license = "MIT"

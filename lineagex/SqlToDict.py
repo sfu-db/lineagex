@@ -70,7 +70,7 @@ class SqlToDict:
         ret_sql = remove_comments(str1=new_sql)
         if self.dialect == "sqlite":
             ret_sql = ret_sql.replace('"', "'")
-            ret_sql = ret_sql.replace("`", '"')
+            ret_sql = ret_sql.replace(" REL)", " REAL)").replace("IS NOT ''", "IS NOT NULL").replace("`", '"')
         elif self.dialect == "postgres":
             ret_sql = ret_sql.replace("`", '')
         # remove any database names in the query

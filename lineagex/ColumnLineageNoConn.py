@@ -71,7 +71,7 @@ class ColumnLineageNoConn:
         self.unnest_dict = {}
         self.input_table_dict = input_table_dict
         # self.sql_ast = parse_one(sql, read=dialect)
-        self.sql_ast = parse_one_sql(sql=sql)
+        self.sql_ast = parse_one_sql(sql='''''' + sql + '''''')
         self.all_used_col = []
         self.table_list = []
         self.all_subquery_table = []

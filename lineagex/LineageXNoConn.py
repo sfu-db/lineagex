@@ -59,7 +59,7 @@ class LineageXNoConn:
         for name, sql in self.sql_files_dict.items():
             try:
                 # sql_ast = parse_one(sql, read=self.dialect)
-                sql_ast = parse_one_sql(sql=sql)
+                sql_ast = parse_one_sql(sql='''''' + sql + '''''')
                 all_tables = self._resolve_table(part_ast=sql_ast)
                 for t in all_tables:
                     if t in self.sql_files_dict.keys() and t not in self.finished_list:

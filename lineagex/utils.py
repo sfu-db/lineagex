@@ -19,17 +19,36 @@ def remove_comments(str1: Optional[str] = "") -> str:
     # remove trailing -- and # comments
     # pattern = r"(?:--|#)(?!.*(['""])[^'""]*\1)[^'\n\r]*"
     # q = " ".join([re.sub(pattern, "", line) for line in lines])
-    q = " ".join(
-        [
-            re.split("--|#", line)[0]
-            if line.find("'#") == -1
-            and line.find('"#') == -1
-            and line.find("'--") == -1
-            and line.find('"--') == -1
-            else line
-            for line in lines
-        ]
-    )
+    q = ""
+    comment_symbol = ["--", "#"]
+    for line in lines:
+        new_line = line
+        for c in comment_symbol:
+            quoted = False
+            # if there is a comment symbol
+            if line.find(c) != -1:
+                c_idx = line.find(c)
+                # if there is a ' on the left
+                if line.rfind("'", c_idx) != -1:
+                    q_idx = line.rfind("'", c_idx)
+                    # find the corresponding ' on the right
+                    if line.find("'", q_idx) != -1:
+                        quoted = True
+                if not quoted:
+                    new_line = re.split("--|#", line)[0]
+        q += " " + new_line
+
+    # q = " ".join(
+    #     [
+    #         re.split("--|#", line)[0]
+    #         if line.find("'#") == -1
+    #         and line.find('"#') == -1
+    #         and line.find("'--") == -1
+    #         and line.find('"--') == -1
+    #         else line
+    #         for line in lines
+    #     ]
+    # )
     # replace all spaces around commas
     q = re.sub(r"\s*,\s*", ",", q)
     # replace all multiple spaces to one space
