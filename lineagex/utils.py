@@ -256,5 +256,18 @@ def _produce_html(output_json: Optional[dict] = "") -> None:
         )
 
 
+def replace_variables(text:str, variables:Optional[dict] = {}):
+  replaced = text
+  for key, val in variables.items():
+    replaced = replaced.replace(key, val)
+
+  return replaced
+
+
+def load_sql_file(file:str, variables:Optional[dict]={}):
+  sql = open(file, mode="r", encoding="latin-1").read()
+  return replace_variables(sql, variables)
+
+
 if __name__ == "__main__":
     pass
