@@ -2,7 +2,7 @@ import os
 import re
 from typing import List, Optional, Union
 
-from .utils import find_select, get_files, remove_comments, load_sql_file
+from .utils import find_select, get_files, remove_comments, load_sql_file, replace_variables
 
 rem_regex = re.compile(r"[^a-zA-Z0-9_.]")
 
@@ -35,7 +35,8 @@ class SqlToDict:
         """
         if isinstance(self.path, list):
             for idx, val in enumerate(self.path):
-                self._preprocess_sql(new_sql=val, file=str(idx), org_sql=val)
+                code = replace_variables(val, self.variables)
+                self._preprocess_sql(new_sql=code, file=str(idx), org_sql=code)
         else:
             self.sql_files = get_files(path=self.path)
             for f in self.sql_files:
