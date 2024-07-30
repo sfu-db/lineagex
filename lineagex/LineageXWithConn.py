@@ -18,6 +18,7 @@ class LineageXWithConn:
         target_schema: Optional[str] = "public",
         conn_string: Optional[str] = "",
         search_path_schema: Optional[str] = "public",
+        variables:Optional[dict] = {},
     ) -> None:
         self.parsed = 0
         self.not_parsed = 0
@@ -35,6 +36,7 @@ class LineageXWithConn:
         self.output_dict = {}
         self.conn = self._check_db_connection(conn_string)
         self.conn.autocommit = True
+        self.variables = variables
         self._run_table_lineage()
 
     def _run_table_lineage(self) -> None:
@@ -112,7 +114,7 @@ class LineageXWithConn:
                     continue
         # path or a list of SQL that at least one element contains
         else:
-            self.sql_files_dict = SqlToDict(self.sql, self.schema_list).sql_files_dict
+            self.sql_files_dict = SqlToDict(self.sql, self.schema_list, variables=self.variables).sql_files_dict
             for name, sql in self.sql_files_dict.items():
                 try:
                     if name not in self.finished_list:

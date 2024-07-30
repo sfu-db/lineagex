@@ -50,6 +50,7 @@ class lineagex:
         conn_string: Optional[str] = None,
         search_path_schema: Optional[str] = "",
         dialect: str = "postgres",
+        variables:Optional[dict] = {},
     ) -> None:
         validate_sql(sql)
         target_schema, search_path_schema = validate_schema(
@@ -65,6 +66,7 @@ class lineagex:
                 target_schema=target_schema,
                 conn_string=conn_string,
                 search_path_schema=search_path_schema,
+                variables=variables,
             )
             save_js_file()
             self.output_dict = lx.output_dict
@@ -74,6 +76,7 @@ class lineagex:
                 dialect=dialect,
                 target_schema=target_schema,
                 search_path_schema=search_path_schema,
+                variables=variables,
             )
             save_js_file()
             self.output_dict = lx.output_dict

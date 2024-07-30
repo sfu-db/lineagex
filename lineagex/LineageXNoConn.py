@@ -35,13 +35,14 @@ class LineageXNoConn:
         dialect: str = "postgres",
         target_schema: Optional[str] = "public",
         search_path_schema: Optional[str] = "public",
+        variables:Optional[dict] = {},
     ) -> None:
         self.output_dict = {}
         self.parsed = 0
         self.target_schema = target_schema
         search_path_schema = [x.strip() for x in search_path_schema.split(",")]
         search_path_schema.append(target_schema)
-        s2d = SqlToDict(path=sql, schema_list=search_path_schema, dialect=dialect)
+        s2d = SqlToDict(path=sql, schema_list=search_path_schema, dialect=dialect, variables=variables)
         self.sql_files_dict = s2d.sql_files_dict
         self.org_sql_files_dict = s2d.org_sql_files_dict
         self.dialect = dialect

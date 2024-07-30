@@ -2,14 +2,18 @@ import os
 import re
 from typing import List, Optional, Union
 
-from .utils import find_select, get_files, remove_comments
+from .utils import find_select, get_files, remove_comments, load_sql_file, replace_variables
 
 rem_regex = re.compile(r"[^a-zA-Z0-9_.]")
 
 
 class SqlToDict:
     def __init__(
-        self, path: Optional[Union[List, str]] = "", schema_list: Optional[List] = None, dialect: Optional[str] = "postgres"
+        self,
+        path: Optional[Union[List, str]] = "",
+        schema_list: Optional[List] = None,
+        dialect: Optional[str] = "postgres",
+        variables:Optional[dict] = {},
     ) -> None:
         self.path = path
         self.schema_list = schema_list
@@ -20,6 +24,7 @@ class SqlToDict:
         self.deletion_dict = {}
         self.insertion_dict = {}
         self.curr_name = ""
+        self.variables = variables
         self._sql_to_dict()
         pass
 
@@ -30,11 +35,12 @@ class SqlToDict:
         """
         if isinstance(self.path, list):
             for idx, val in enumerate(self.path):
-                self._preprocess_sql(new_sql=val, file=str(idx), org_sql=val)
+                code = replace_variables(val, self.variables)
+                self._preprocess_sql(new_sql=code, file=str(idx), org_sql=code)
         else:
             self.sql_files = get_files(path=self.path)
             for f in self.sql_files:
-                org_sql = open(f, mode="r", encoding="latin-1").read()
+                org_sql = load_sql_file(f, self.variables)
                 new_sql = remove_comments(str1=org_sql)
                 org_sql_split = list(filter(None, new_sql.split(";")))
                 # pop DROP IF EXISTS
