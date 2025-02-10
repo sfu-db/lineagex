@@ -66,8 +66,8 @@ When entering the `conn_string` parameter, only supported databases' connection 
 ## Database Connection Types
 - [x] Postgres
 - [x] dbt-Postgres
+- [x] Sqlite
 - [ ] Mysql
-- [ ] Sqlite
 - [ ] SQL Server
 - [ ] Oracle
 - [ ] ...
@@ -75,3 +75,4 @@ When entering the `conn_string` parameter, only supported databases' connection 
 
 # Documentation
 Doc: https://sfu-db.github.io/lineagex/intro.html or just [here](https://sfu-db.github.io/lineagex/intro.html)
+Javascript Source: Compiled and forked from [here](https://github.com/Bert0324/lineage-dag) by Bert Huang

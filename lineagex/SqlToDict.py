@@ -2,7 +2,7 @@ import os
 import re
 from typing import List, Optional, Union
 
-from .utils import find_select, get_files, remove_comments
+from .utils import find_select, get_files, remove_comments_sqlite, remove_comments_pg
 
 rem_regex = re.compile(r"[^a-zA-Z0-9_.]")
 
@@ -35,7 +35,13 @@ class SqlToDict:
             self.sql_files = get_files(path=self.path)
             for f in self.sql_files:
                 org_sql = open(f, mode="r", encoding="latin-1").read()
-                new_sql = remove_comments(str1=org_sql)
+                if self.dialect == "sqlite":
+                    new_sql = remove_comments_sqlite(str1=org_sql)
+                elif self.dialect == "postgres":
+                    new_sql = remove_comments_pg(str1=org_sql)
+                else:
+                    new_sql = remove_comments_pg(str1=org_sql)
+                #new_sql = remove_comments(str1=org_sql)
                 org_sql_split = list(filter(None, new_sql.split(";")))
                 # pop DROP IF EXISTS
                 if len(org_sql_split) > 0:
@@ -67,11 +73,13 @@ class SqlToDict:
         :param new_sql: the sql for parsing, file: file name for the sql, org_sql: the most original sql
         :return: None
         """
-        ret_sql = remove_comments(str1=new_sql)
+        #ret_sql = remove_comments(str1=new_sql)
         if self.dialect == "sqlite":
+            ret_sql = remove_comments_sqlite(str1=new_sql)
             ret_sql = ret_sql.replace('"', "'")
             ret_sql = ret_sql.replace(" REL)", " REAL)").replace("IS NOT ''", "IS NOT NULL").replace("`", '"')
         elif self.dialect == "postgres":
+            ret_sql = remove_comments_pg(str1=new_sql)
             ret_sql = ret_sql.replace("`", '')
         # remove any database names in the query
         if self.schema_list:

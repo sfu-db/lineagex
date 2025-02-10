@@ -35,6 +35,7 @@ class LineageXNoConn:
         dialect: str = "postgres",
         target_schema: Optional[str] = "public",
         search_path_schema: Optional[str] = "public",
+        input_table_dict: Optional[dict] = None
     ) -> None:
         self.output_dict = {}
         self.parsed = 0
@@ -45,7 +46,10 @@ class LineageXNoConn:
         self.sql_files_dict = s2d.sql_files_dict
         self.org_sql_files_dict = s2d.org_sql_files_dict
         self.dialect = dialect
-        self.input_table_dict = {}
+        if input_table_dict is None:
+            self.input_table_dict = {}
+        else:
+            self.input_table_dict = input_table_dict
         self.finished_list = []
         self._find_lineage_no_conn()
 
@@ -58,7 +62,8 @@ class LineageXNoConn:
         start_time = time.time()
         for name, sql in self.sql_files_dict.items():
             try:
-                # sql_ast = parse_one(sql, read=self.dialect)
+                sql_ast = parse_one(sql, read=self.dialect)
+                #print(sql)
                 sql_ast = parse_one_sql(sql='''''' + sql + '''''')
                 all_tables = self._resolve_table(part_ast=sql_ast)
                 for t in all_tables:

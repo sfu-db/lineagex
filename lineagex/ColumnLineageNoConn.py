@@ -340,9 +340,10 @@ class ColumnLineageNoConn:
                     )
                     all_cte_sub_cols.extend(temp_sub_cols)
                     if len(all_cte_sub_table) == 1:
-                        self.table_alias_dict[
-                            sub_ast.find(exp.TableAlias).alias_or_name
-                        ] = all_cte_sub_table[0]
+                        if sub_ast.find(exp.TableAlias):
+                            self.table_alias_dict[
+                                sub_ast.find(exp.TableAlias).alias_or_name
+                            ] = all_cte_sub_table[0]
                     potential_cte_sub_table = temp_sub_table
                     if type(sub_ast.parent) in from_join_exp:
                         temp_sub_dict = {}
@@ -359,7 +360,10 @@ class ColumnLineageNoConn:
                         #         target_dict=temp_sub_dict,
                         #         source_table=temp_sub_table,
                         #     )
-                        sub_name = sub_ast.find(exp.TableAlias).alias_or_name
+                        if sub_ast.find(exp.TableAlias) is not None:
+                            sub_name = sub_ast.find(exp.TableAlias).alias_or_name
+                        else:
+                            sub_name = "no_name_subquery"
                         self.cte_dict[sub_name] = temp_sub_dict
                         sub_ast.replace(exp.Table(this=sub_name))
                     sub_ast.pop()
@@ -745,7 +749,8 @@ class ColumnLineageNoConn:
         if len(temp) < 2:
             for t in temp_table:
                 if t in self.input_table_dict.keys():
-                    if col_sql in self.input_table_dict[t]:
+                    # resolve any case mismatching
+                    if col_sql.lower() in [x.lower() for x in self.input_table_dict[t]]:
                         if ref:
                             return [[], [t + "." + col_sql]]
                         else:
@@ -927,7 +932,7 @@ class ColumnLineageNoConn:
                                 temp_col = temp_col + cols[0] + cols[1]
                             target_dict[col_name] = [
                                 [""],
-                                list(self.all_used_col.union(set(temp_col))),
+                                list(set(self.all_used_col).union(set(temp_col))),
                             ]
                         elif t_name in self.cte_dict.keys():
                             temp_col = []
