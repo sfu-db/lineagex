@@ -20,6 +20,7 @@ Check out more detailed usage and examples [here](https://sfu-db.github.io/linea
 The input can be a path to a SQL file, a path to a folder containing SQL files, a list of SQLs or a list of view names and/or schemas. Optionally, you can provide less information with only the SQLs, but providing the schema information and database connection is highly recommended for the best result.
 The output would be a output.json and a index.html file in the folder. Start a local http server and you would be able to see the interactive graph.
 <img src="https://raw.githubusercontent.com/sfu-db/lineagex/main/docs/example.gif"/>
+
 Check out more detailed navigation instructions [here](https://sfu-db.github.io/lineagex/output.html#how-to-navigate-the-webpage).
 
 ## Why use LineageX
@@ -75,4 +76,5 @@ When entering the `conn_string` parameter, only supported databases' connection 
 
 # Documentation
 Doc: https://sfu-db.github.io/lineagex/intro.html or just [here](https://sfu-db.github.io/lineagex/intro.html)
+
 Javascript Source: Compiled and forked from [here](https://github.com/Bert0324/lineage-dag) by Bert Huang
