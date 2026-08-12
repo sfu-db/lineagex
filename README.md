@@ -78,3 +78,18 @@ When entering the `conn_string` parameter, only supported databases' connection 
 Doc: https://sfu-db.github.io/lineagex/intro.html or just [here](https://sfu-db.github.io/lineagex/intro.html)
 
 Javascript Source: Compiled and forked from [here](https://github.com/Bert0324/lineage-dag) by Bert Huang
+
+# Citation
+@inproceedings{LineageX,
+  author       = {Shi Heng Zhang and
+                  Zhengjie Miao and
+                  Jiannan Wang},
+  title        = {LineageX: {A} Column Lineage Extraction System for {SQL}},
+  booktitle    = {41st {IEEE} International Conference on Data Engineering, {ICDE} 2025,
+                  Hong Kong, May 19-23, 2025},
+  pages        = {4604--4607},
+  publisher    = {{IEEE}},
+  year         = {2025},
+  url          = {https://doi.org/10.1109/ICDE65448.2025.00363},
+  doi          = {10.1109/ICDE65448.2025.00363},
+}
